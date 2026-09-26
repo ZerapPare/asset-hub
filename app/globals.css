@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
+/* สีหลัก */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #f5f3ef;
+  --surface: #ffffff;
+  --line: #dedad3;
+  --line-soft: #ebe7e0;
+  --ink: #1c1917;
+  --ink-muted: #6b6560;
+  --ink-subtle: #9a938b;
+  --brand: #e35205;
+  --brand-hover: #c94604;
+  --brand-soft: #fdebdd;
+  --brand-ink: #a63c00;
+  --danger: #b42318;
+  --danger-soft: #fef0ee;
+  --hero: #1f1a17;
+  --hero-raised: #2e2723;
+  --hero-line: #473e38;
+  --hero-ink: #fbf7f2;
+  --hero-ink-muted: #cbbfb4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-hero: var(--hero);
+  --color-hero-raised: var(--hero-raised);
+  --color-hero-line: var(--hero-line);
+  --color-hero-ink: var(--hero-ink);
+  --color-hero-ink-muted: var(--hero-ink-muted);
+  --font-sans: var(--font-jakarta), var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
 }
