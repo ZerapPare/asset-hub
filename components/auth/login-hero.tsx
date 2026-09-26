@@ -1,6 +1,6 @@
 import { Logo } from "@/components/brand/logo";
 import { SparkleIcon } from "@/components/icons";
-import { MeetingScene, type MeetingSceneVariant } from "./meeting-scene";
+import { MeetingScene, type MeetingSceneVariant } from "@/components/illustrations/meeting-scene";
 
 const demoResults: { variant: MeetingSceneVariant; score: number }[] = [
   { variant: "table", score: 97 },

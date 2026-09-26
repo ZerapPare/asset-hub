@@ -30,12 +30,20 @@ function Plant({ x, y }: { x: number; y: number }) {
 export function MeetingScene({
   variant,
   className,
+  cover = false,
 }: {
   variant: MeetingSceneVariant;
   className?: string;
+  cover?: boolean;
 }) {
   return (
-    <svg viewBox="0 0 200 130" className={className} role="img" aria-label="ภาพทีมงานกำลังประชุม">
+    <svg
+      viewBox="0 0 200 130"
+      className={className}
+      preserveAspectRatio={cover ? "xMidYMid slice" : undefined}
+      role="img"
+      aria-label="ภาพทีมงานกำลังประชุม"
+    >
       <rect width="200" height="130" fill="#efe7dc" />
       <rect y="100" width="200" height="30" fill="#e2d6c6" />
 

@@ -15,7 +15,7 @@ const plexThai = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "CAMP — Cloud Asset Management",
+  title: "AssetHub",
   description: "จัดเก็บ จัดการ และค้นหาไฟล์ขององค์กรด้วยความหมาย",
 };
 

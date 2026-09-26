@@ -1,8 +1,9 @@
 type LogoProps = {
   tone?: "light" | "dark";
+  compact?: boolean;
 };
 
-export function Logo({ tone = "dark" }: LogoProps) {
+export function Logo({ tone = "dark", compact = false }: LogoProps) {
   const titleColor = tone === "light" ? "text-hero-ink" : "text-ink";
   const subtitleColor = tone === "light" ? "text-brand-soft/80" : "text-ink-muted";
 
@@ -14,8 +15,8 @@ export function Logo({ tone = "dark" }: LogoProps) {
         <rect x="16" y="16" width="20" height="20" rx="5" fill="#ffffff" />
         <circle cx="26" cy="26" r="4.5" fill="var(--brand)" />
       </svg>
-      <div className="leading-tight">
-        <p className={`text-2xl font-bold tracking-tight ${titleColor}`}>CAMP</p>
+      <div className={compact ? "hidden" : "leading-tight"}>
+        <p className={`text-2xl font-bold tracking-tight ${titleColor}`}>AssetHub</p>
         <p className={`text-sm font-semibold ${subtitleColor}`}>Cloud Asset Management</p>
       </div>
     </div>

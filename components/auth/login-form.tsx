@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type SubmitEvent } from "react";
 import { EyeIcon, EyeOffIcon, GoogleIcon, InfoIcon } from "@/components/icons";
 import { GOOGLE_LOGIN_URL, login } from "@/lib/api/auth";
@@ -27,7 +28,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState(initialError);
   const [pending, setPending] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const router = useRouter();
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,10 +39,12 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 
     setPending(true);
     const result = await login(email.trim().toLowerCase(), password);
+    if (result.ok) {
+      router.replace("/assets");
+      return;
+    }
     setPending(false);
-    // TODO: router.push("/library") เมื่อมีหน้า Library
-    if (result.ok) setLoggedIn(true);
-    else setFormError(result.message);
+    setFormError(result.message);
   }
 
   return (
@@ -54,11 +57,6 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           {formError}
         </p>
       )}
-      {loggedIn && (
-        <p role="status" className="mt-6 rounded-xl border border-brand/20 bg-brand-soft px-4 py-3 text-sm text-brand-ink">
-          เข้าสู่ระบบสำเร็จ (mock) — หน้า Library ยังไม่ได้ทำ
-        </p>
-      )}
 
       <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-6">
         <div>
@@ -69,7 +67,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             id="email"
             type="email"
             autoComplete="email"
-            placeholder={`name@${ALLOWED_EMAIL_DOMAIN}`}
+            placeholder={`name@xxx.ac.th`}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={!!fieldErrors.email}
@@ -158,7 +156,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       </a>
 
       <p className="mt-8 border-t border-line-soft pt-6 text-sm leading-relaxed text-ink-muted">
-        ยังไม่เคยตั้งรหัสผ่าน? เข้าสู่ระบบด้วย Google ก่อน แล้วตั้งรหัสผ่านได้ที่หน้าโปรไฟล์
+        หากยังไม่เคยตั้งรหัสผ่าน กรุณาเข้าสู่ระบบด้วย Google ก่อน แล้วตั้งรหัสผ่านได้ที่หน้าโปรไฟล์
       </p>
     </div>
   );
