@@ -28,7 +28,10 @@
 ## กฎการเพิ่ม Asset
 - **ห้ามเพิ่ม asset ที่เป็น PRIVATE**
 - asset ที่จะเพิ่มต้องเป็นอันที่ผู้เพิ่มมองเห็นได้ (`canView`)
-- asset แบบ TEAM ที่อยู่ใน collection: สมาชิกที่ไม่อยู่ในทีมจะเห็นหรือไม่ → **รอตัดสินใจ** ดู [12](12-open-questions.md)
+- asset แบบ TEAM: สมาชิกทุกคนของ collection ที่มี asset นั้นเห็นได้ ("ทีม" = สมาชิก collection ดู [04](04-library-download.md))
+- **asset แบบ TEAM เพิ่มเข้า collection ได้เฉพาะเจ้าของไฟล์** (ต้องเป็น EDITOR+ ของ collection นั้นด้วย) — กันไม่ให้สมาชิกเอาไฟล์ของคนอื่นไปแชร์ต่อใน collection อื่น
+  - ORGANIZATION: EDITOR+ คนไหนก็เพิ่มได้
+  - การเอาออก: EDITOR+ เอาออกได้ทุก visibility (ลดการมองเห็น ไม่ใช่เพิ่ม)
 - ต้องมี OWNER อย่างน้อย 1 คนเสมอ ห้ามลบหรือลดสิทธิ์ OWNER คนสุดท้าย
 
 ## API
@@ -57,7 +60,7 @@ DELETE /api/collections/:id/members/:userId     (OWNER; สมาชิกออ
 ## Checklist
 - [ ] `requireCollectionRole()`
 - [ ] CRUD collection (สร้างพร้อมเพิ่มผู้สร้างเป็น OWNER)
-- [ ] เพิ่ม/เอา asset ออก + ห้าม PRIVATE
+- [ ] เพิ่ม/เอา asset ออก + ห้าม PRIVATE + TEAM เพิ่มได้เฉพาะเจ้าของไฟล์
 - [ ] จัดการสมาชิก + กันไม่ให้ OWNER คนสุดท้ายหายไป
 - [ ] UI: หน้ารายการ collection, หน้า collection, หน้าจัดการสมาชิก, ปุ่ม "เพิ่มเข้า Collection" ในหน้า asset/upload
 - [ ] ทดสอบสิทธิ์ครบทุกแถวในตารางด้านบน

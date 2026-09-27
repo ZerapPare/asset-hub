@@ -7,16 +7,19 @@
 ## A. ต้องตกลงก่อนเริ่ม
 
 ### A1. Schema ที่คนที่ 1 ขอเพิ่มหรือแก้
-- [ ] `users.status` — `ACTIVE` / `DISABLED` (DEFAULT `ACTIVE`)
-- [ ] `users.token_version INT NOT NULL DEFAULT 0`
-- [ ] `users.password_hash` ให้เป็น NULL ได้ (NULL = ยังไม่ตั้งรหัส ใช้ได้แค่ Google login)
-- [ ] `users.email`, `users.google_sub` เป็น UNIQUE
-- [ ] `users.created_at`, `users.updated_at`
-- [ ] แก้ชื่อ `avartar_url` → `avatar_url`
-- [ ] แก้ FK ที่อ้าง `user.id` → `users.user_id`
-- [ ] `collections` PK = `collection_id`
-- [ ] `collection_members` PK = `(collection_id, user_id)`
-- [ ] ตาราง Team และสมาชิกทีม (ถ้าจะใช้ visibility แบบ TEAM)
+> Schema อยู่ที่ `db/migrations/` ดูคำอธิบายใน [db/README.md](../../../db/README.md)
+
+- [x] `users.status` — `ACTIVE` / `DISABLED` (DEFAULT `ACTIVE`)
+- [x] `users.token_version INT NOT NULL DEFAULT 0`
+- [x] `users.password_hash` ให้เป็น NULL ได้ (NULL = ยังไม่ตั้งรหัส ใช้ได้แค่ Google login)
+- [x] `users.email`, `users.google_sub` เป็น UNIQUE
+- [x] `users.created_at`, `users.updated_at`
+- [x] แก้ชื่อ `avartar_url` → `avatar_url`
+- [x] แก้ FK ที่อ้าง `user.id` → `users.user_id`
+- [x] `collections` PK = `collection_id`
+- [x] `collection_members` PK = `(collection_id, user_id)`
+- [x] PK ทุกตารางเป็น UUID (`gen_random_uuid()`)
+- [x] ~~ตาราง Team~~ ไม่ต้องมี: "ทีม" = สมาชิก collection (`collection_members`) ดูกฎใน [04](04-library-download.md)
 - [ ] ค่า `file_type`: `DOCUMENT` / `IMAGE`
 - [ ] Index ตาม [08-filter-sort.md](08-filter-sort.md)
 
@@ -37,8 +40,8 @@
 ```json
 {
   "version": 1,
-  "assetId": 123,
-  "s3Key": "assets/123/original.pdf",
+  "assetId": "0b6f3c2e-8d1a-4f5e-9c7b-2a4d6e8f1a3c",
+  "s3Key": "assets/0b6f3c2e-8d1a-4f5e-9c7b-2a4d6e8f1a3c/original.pdf",
   "bucket": "assethub-prod-...",
   "mimeType": "application/pdf",
   "fileType": "DOCUMENT",
@@ -67,7 +70,9 @@
 ### B3. Soft delete
 - คนที่ 1 ตั้ง `deleted_at`
 - คนที่ 2 ต้องกรอง `deleted_at IS NULL` ในทุกการค้นหา
-- ตอน job ลบถาวร ([05](05-edit-delete.md)) ต้องลบ chunks และ embeddings ด้วย ใครเป็นคนเขียนส่วนนี้: ___
+- job ลบถาวร ([05](05-edit-delete.md)): หลัง `deleted_at` เกิน **7 วัน** คนที่ 1 ลบ S3 object ก่อน แล้ว `DELETE FROM assets`
+  - chunks, embeddings, tags, collection links และ workflows ถูกลบตามอัตโนมัติด้วย `ON DELETE CASCADE` คนที่ 2 ไม่ต้องเขียนเพิ่ม
+  - `audit_logs.asset_id` กลายเป็น NULL แต่ log ยังอยู่
 
 ### B4. Thumbnail
 - ใครสร้าง: ___ (เสนอให้คนที่ 2 ทำใน Processing)

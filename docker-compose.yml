@@ -5,7 +5,11 @@ services:
       POSTGRES_PASSWORD: dev
       POSTGRES_DB: assethub
     ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    # ไฟล์ใน db/migrations ถูกรันตามลำดับชื่อ เฉพาะตอนสร้าง volume ครั้งแรก
+    # มี migration ใหม่ → รันเองใน DBeaver หรือ `docker compose down -v` แล้ว up ใหม่ (ข้อมูลหาย)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
 
 # ใช้จำลองตัว S3 ของ AWS สำหรับเก็บไฟล์
   minio:

@@ -28,10 +28,10 @@ DELETE /api/assets/:id
 → INSERT audit_logs (DELETE)
 ```
 - asset จะหายจาก Library, Collection และ Search ทันที เพราะทุก query กรอง `deleted_at IS NULL`
-- **ลบไฟล์ใน S3 จริง:** ใช้ job ตามเวลา (EventBridge Scheduler → Lambda) ลบ asset ที่ `deleted_at` เกิน 30 วัน
-  - ลบ S3 object ทั้งต้นฉบับและ thumbnail
-  - ลบ embeddings และ chunks (ตกลงกับคนที่ 2)
-  - ลบแถวใน DB หรือเก็บไว้เพื่อ audit
+- **ลบไฟล์ใน S3 จริง:** ใช้ job ตามเวลา (EventBridge Scheduler → Lambda) ลบ asset ที่ `deleted_at` เกิน 7 วัน
+  - ลบ S3 object ทั้งต้นฉบับและ thumbnail **ก่อน**
+  - แล้ว `DELETE FROM assets` — chunks, embeddings, tags, collection links ถูกลบตามด้วย `ON DELETE CASCADE`
+  - `audit_logs` ยังอยู่ (`asset_id` เป็น NULL) จึงต้องเก็บชื่อไฟล์ไว้ใน `details` ตอนเขียน log
 - เรื่องนี้ตอบข้อสังเกตใน FR ว่า "ลบเลยหรือเก็บไว้ก่อนแล้วตั้งเวลาลบ" → **เก็บไว้ก่อน แล้วตั้งเวลาลบ**
 
 ## Checklist
@@ -40,5 +40,5 @@ DELETE /api/assets/:id
 - [ ] จัดการกรณีเปลี่ยนเป็น PRIVATE ขณะอยู่ใน collection
 - [ ] audit log `UPDATE` / `DELETE`
 - [ ] UI: ฟอร์มแก้ไข และกล่องยืนยันการลบ
-- [ ] (ภายหลัง) job ลบถาวรหลัง 30 วัน
+- [ ] (ภายหลัง) job ลบถาวรหลัง 7 วัน
 - [ ] ทดสอบ: คนที่ไม่ใช่ owner ต้องแก้ไขหรือลบไม่ได้

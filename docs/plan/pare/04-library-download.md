@@ -16,17 +16,35 @@ canView(user, asset):
   if asset.owner_id == user.id           → true
   switch asset.visibility:
     ORGANIZATION → true
-    TEAM         → user อยู่ในทีมเดียวกับ owner  (รอตกลงเรื่องตาราง Team)
+    TEAM         → user เป็นสมาชิกของ collection (ที่ยังไม่ถูกลบ) ที่มี asset นี้อยู่
     PRIVATE      → false
-  // เพิ่มเติม: ถ้า user เป็นสมาชิก collection ที่มี asset นี้ → true (รอตกลง ดู 12)
 ```
 
-และมีเวอร์ชัน SQL (`visibleAssetsWhere(userId)`) ไว้ใช้ใน list, search และ semantic search
+**"ทีม" = สมาชิกของ Collection** (`collection_members`) ไม่มีตาราง Team แยก
+- TEAM ที่ยังไม่ได้อยู่ใน collection ไหน → เห็นแค่เจ้าของ
+- เอา asset ออกจาก collection, ลบสมาชิก หรือลบ collection → สมาชิกคนนั้นเห็นไม่ได้อีก (ถ้าไม่ได้อยู่ collection อื่นที่มี asset นี้)
+
+เวอร์ชัน SQL (`visibleAssetsWhere(userId)`) ใช้ใน list, keyword search และ semantic search:
+
+```sql
+a.deleted_at IS NULL AND (
+  a.owner_id = $userId
+  OR a.visibility = 'ORGANIZATION'
+  OR (a.visibility = 'TEAM' AND EXISTS (
+    SELECT 1
+    FROM asset_collection ac
+    JOIN collections c
+      ON c.collection_id = ac.collection_id AND c.deleted_at IS NULL
+    JOIN collection_members cm
+      ON cm.collection_id = ac.collection_id AND cm.user_id = $userId
+    WHERE ac.asset_id = a.asset_id
+  ))
+)
+```
 
 ## Library
 - `GET /api/assets` แสดงเฉพาะ:
-  - `visibility = 'ORGANIZATION'`
-  - `deleted_at IS NULL`
+  - asset ที่ผ่าน `visibleAssetsWhere(userId)` (ORGANIZATION ทั้งหมด + TEAM ที่อยู่ใน collection ของฉัน + ของตัวเอง)
   - `processing_status IN ('PROCESSING','READY','FAILED')` ไม่แสดง UPLOADING
 - มีแท็บ "ของฉัน" (`?owner=me`) ที่แสดง asset ของตัวเองทุก visibility
 - แสดงป้ายสถานะ Processing / Ready / Failed (คนที่ 2 เป็นคนอัปเดตค่า)
