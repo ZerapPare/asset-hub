@@ -11,7 +11,7 @@ import { SIDEBAR_COOKIE } from "@/lib/config";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const [summary, cookieStore] = await Promise.all([getSummary(), cookies()]);
+  const [summary, cookieStore] = await Promise.all([getSummary(user.user_id), cookies()]);
   // อ่านจาก cookie ฝั่ง server เพื่อไม่ให้ sidebar กระพริบเปิดแล้วปิดตอนโหลดหน้า
   const sidebarOpen = cookieStore.get(SIDEBAR_COOKIE)?.value !== "closed";
 

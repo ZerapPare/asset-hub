@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { sql } from "@/lib/db";
 import type { Asset, FileType, ProcessingStatus } from "@/lib/types";
 
@@ -14,33 +15,51 @@ export type Dashboard = {
 
 const RECENT_LIMIT = 6;
 
+type Totals = Omit<Dashboard, "recent">;
+
 // Asset ของ user นับเฉพาะที่ยังไม่ถูกลบ และอัปโหลดเสร็จแล้ว (ไม่นับ UPLOADING)
+// ใช้ทั้งหน้า Dashboard และพื้นที่จัดเก็บใน sidebar — cache() ให้ query ครั้งเดียวต่อ request
+export const getAssetTotals = cache(async (userId: string): Promise<Totals> => {
+  const [totals] = await sql<{
+    total: number;
+    bytes: number;
+    documents: number;
+    document_bytes: number;
+    images: number;
+    image_bytes: number;
+    processing: number;
+    failed: number;
+  }[]>`
+    SELECT
+      COUNT(*)::int                                                          AS total,
+      COALESCE(SUM(file_size), 0)::float8                                    AS bytes,
+      COUNT(*) FILTER (WHERE file_type = 'DOCUMENT')::int                    AS documents,
+      COALESCE(SUM(file_size) FILTER (WHERE file_type = 'DOCUMENT'), 0)::float8 AS document_bytes,
+      COUNT(*) FILTER (WHERE file_type = 'IMAGE')::int                       AS images,
+      COALESCE(SUM(file_size) FILTER (WHERE file_type = 'IMAGE'), 0)::float8 AS image_bytes,
+      COUNT(*) FILTER (WHERE processing_status = 'PROCESSING')::int          AS processing,
+      COUNT(*) FILTER (WHERE processing_status = 'FAILED')::int              AS failed
+    FROM assets
+    WHERE owner_id = ${userId}
+      AND deleted_at IS NULL
+      AND processing_status <> 'UPLOADING'
+  `;
+
+  return {
+    totalAssets: totals.total,
+    storageUsed: totals.bytes,
+    byType: {
+      DOCUMENT: { count: totals.documents, bytes: totals.document_bytes },
+      IMAGE: { count: totals.images, bytes: totals.image_bytes },
+    },
+    processing: totals.processing,
+    failed: totals.failed,
+  };
+});
+
 export async function getDashboard(userId: string): Promise<Dashboard> {
-  const [[totals], recent] = await Promise.all([
-    sql<{
-      total: number;
-      bytes: number;
-      documents: number;
-      document_bytes: number;
-      images: number;
-      image_bytes: number;
-      processing: number;
-      failed: number;
-    }[]>`
-      SELECT
-        COUNT(*)::int                                                          AS total,
-        COALESCE(SUM(file_size), 0)::float8                                    AS bytes,
-        COUNT(*) FILTER (WHERE file_type = 'DOCUMENT')::int                    AS documents,
-        COALESCE(SUM(file_size) FILTER (WHERE file_type = 'DOCUMENT'), 0)::float8 AS document_bytes,
-        COUNT(*) FILTER (WHERE file_type = 'IMAGE')::int                       AS images,
-        COALESCE(SUM(file_size) FILTER (WHERE file_type = 'IMAGE'), 0)::float8 AS image_bytes,
-        COUNT(*) FILTER (WHERE processing_status = 'PROCESSING')::int          AS processing,
-        COUNT(*) FILTER (WHERE processing_status = 'FAILED')::int              AS failed
-      FROM assets
-      WHERE owner_id = ${userId}
-        AND deleted_at IS NULL
-        AND processing_status <> 'UPLOADING'
-    `,
+  const [totals, recent] = await Promise.all([
+    getAssetTotals(userId),
     sql<{
       asset_id: string;
       display_name: string;
@@ -66,14 +85,7 @@ export async function getDashboard(userId: string): Promise<Dashboard> {
   ]);
 
   return {
-    totalAssets: totals.total,
-    storageUsed: totals.bytes,
-    byType: {
-      DOCUMENT: { count: totals.documents, bytes: totals.document_bytes },
-      IMAGE: { count: totals.images, bytes: totals.image_bytes },
-    },
-    processing: totals.processing,
-    failed: totals.failed,
+    ...totals,
     recent: recent.map((row) => ({
       id: row.asset_id,
       name: row.display_name,

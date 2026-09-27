@@ -1,15 +1,22 @@
 import { STORAGE_QUOTA } from "@/lib/config";
+import { getAssetTotals } from "@/lib/dashboard";
 import type { Asset, FileType, Summary } from "@/lib/types";
 
-// TODO: ดึงจาก DB
-export async function getSummary(): Promise<Summary> {
+// TODO: ตัวเลขอื่นยังไม่ได้ดึงจาก DB (storage ดึงแล้ว)
+export async function getSummary(userId: string): Promise<Summary> {
+  const { storageUsed, byType } = await getAssetTotals(userId);
   return {
     totalAssets: 0,
     documents: 0,
     images: 0,
     collections: [],
     tags: 0,
-    storage: { used: 0, documents: 0, images: 0, quota: STORAGE_QUOTA },
+    storage: {
+      used: storageUsed,
+      documents: byType.DOCUMENT.bytes,
+      images: byType.IMAGE.bytes,
+      quota: STORAGE_QUOTA,
+    },
   };
 }
 
