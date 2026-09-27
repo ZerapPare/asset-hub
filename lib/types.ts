@@ -1,6 +1,5 @@
 import type { DbFileType, DbProcessingStatus } from "@/lib/schema";
 
-
 export type FileType = DbFileType;
 export type ProcessingStatus = Exclude<DbProcessingStatus, "UPLOADING">;
 
@@ -24,6 +23,15 @@ export type Collection = {
   assetCount: number;
   updatedAt: string;
   previews: Asset[];
+};
+
+export type TagSummary = {
+  id: string;
+  name: string;
+  documents: number;
+  images: number;
+  createdBy: Person;
+  lastUsedAt: string | null;
 };
 
 export type StorageSummary = { used: number; documents: number; images: number; quota: number };

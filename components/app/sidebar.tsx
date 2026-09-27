@@ -29,7 +29,8 @@ export function Sidebar({ session, summary }: { session: Session; summary: Summa
     { href: "/dashboard", label: "แดชบอร์ด", icon: <GridIcon /> },
     { href: "/assets", label: "Asset ทั้งหมด", icon: <LayersIcon />, count: summary.totalAssets },
     { href: "/assets?type=image", label: "รูปภาพ", icon: <ImageIcon />, count: summary.images },
-    { href: "/assets?type=document", label: "เอกสาร", icon: <FileIcon />, count: summary.documents },    { href: "/collections", label: "Collection", icon: <FolderIcon />, count: collections.length },
+    { href: "/assets?type=document", label: "เอกสาร", icon: <FileIcon />, count: summary.documents },
+    { href: "/collections", label: "Collection", icon: <FolderIcon />, count: collections.length },
     { href: "/tags", label: "Tag", icon: <TagIcon />, count: summary.tags },
     { href: "/search", label: "ค้นหา", icon: <SearchIcon /> },
   ];
