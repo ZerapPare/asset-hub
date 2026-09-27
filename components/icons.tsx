@@ -186,10 +186,3 @@ export const MenuIcon = (p: IconProps) => (
     <path d="M4 6h16M4 12h16M4 18h16" />
   </Stroke>
 );
-
-export const VideoIcon = (p: IconProps) => (
-  <Stroke {...p}>
-    <rect x="2" y="5" width="14" height="14" rx="2.5" />
-    <path d="m16 10 6-3.5v11L16 14" />
-  </Stroke>
-);

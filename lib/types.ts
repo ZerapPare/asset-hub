@@ -1,5 +1,8 @@
-export type FileType = "DOCUMENT" | "IMAGE" | "VIDEO";
-export type ProcessingStatus = "PROCESSING" | "READY" | "FAILED";
+import type { DbFileType, DbProcessingStatus } from "@/lib/schema";
+
+
+export type FileType = DbFileType;
+export type ProcessingStatus = Exclude<DbProcessingStatus, "UPLOADING">;
 
 export type Person = { name: string; isMe?: boolean };
 
@@ -29,7 +32,6 @@ export type Summary = {
   totalAssets: number;
   documents: number;
   images: number;
-  videos: number;
   collections: Collection[];
   tags: number;
   storage: StorageSummary;

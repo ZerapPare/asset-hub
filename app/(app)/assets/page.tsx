@@ -11,9 +11,7 @@ export const metadata: Metadata = { title: "Asset ทั้งหมด — Asse
 
 const types: Record<string, { value: FileType; title: string }> = {
   image: { value: "IMAGE", title: "รูปภาพ" },
-  document: { value: "DOCUMENT", title: "เอกสาร" },
-  video: { value: "VIDEO", title: "วิดีโอ" },
-};
+  document: { value: "DOCUMENT", title: "เอกสาร" },};
 
 export default async function AssetsPage({ searchParams }: PageProps<"/assets">) {
   const { type } = await searchParams;

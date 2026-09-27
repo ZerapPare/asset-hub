@@ -7,7 +7,6 @@ export async function getSummary(): Promise<Summary> {
     totalAssets: 0,
     documents: 0,
     images: 0,
-    videos: 0,
     collections: [],
     tags: 0,
     storage: { used: 0, documents: 0, images: 0, quota: STORAGE_QUOTA },

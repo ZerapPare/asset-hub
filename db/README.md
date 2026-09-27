@@ -29,6 +29,12 @@ ORDER BY table_name;
 SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector', 'pg_trgm');
 ```
 
+## ข้อมูลทดสอบ (`seed.sql`)
+- **ใช้ในเครื่องเท่านั้น ห้ามรันบน RDS** — รันหลัง migration ครบ รันซ้ำได้ (ลบ seed เก่าก่อนเสมอ)
+- user 4 คน (`seed.alice`, `seed.bob`, `seed.carol`, `seed.dave` ที่ถูก DISABLED), asset 18 ไฟล์, collection 3 อัน, tags, document chunks, processing workflows
+- ไม่มี embeddings (ต้องได้จาก Bedrock ผ่าน worker) และ `s3_key` เป็นค่าปลอม preview/download จึงใช้ไม่ได้
+- ท้ายไฟล์มี query ตรวจกฎสิทธิ์ `TEAM` และตัวเลข dashboard พร้อมค่าที่ควรได้
+
 ## Embeddings
 - เอกสาร: Titan Text Embeddings V2 (`amazon.titan-embed-text-v2:0`) → `document_embeddings`
 - รูป: Titan Multimodal Embeddings (`amazon.titan-embed-image-v1`) → `image_embeddings`
