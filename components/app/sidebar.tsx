@@ -20,6 +20,7 @@ import type { Session } from "@/lib/auth/session";
 import { formatBytes } from "@/lib/format";
 import type { Summary } from "@/lib/types";
 import { NavLink } from "./nav-link";
+import { SidebarCloseButton, SidebarFrame } from "./sidebar-state";
 
 export function Sidebar({ session, summary }: { session: Session; summary: Summary }) {
   const { storage, collections } = summary;
@@ -35,12 +36,15 @@ export function Sidebar({ session, summary }: { session: Session; summary: Summa
   const usedPct = Math.round((storage.used / storage.quota) * 100);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-4 py-6 lg:flex">
-      <Link href="/assets" className="px-2">
-        <Logo />
-      </Link>
+    <SidebarFrame>
+      <div className="flex items-center justify-between gap-2 px-2">
+        <Link href="/assets">
+          <Logo />
+        </Link>
+        <SidebarCloseButton />
+      </div>
 
-      <nav aria-label="เมนูหลัก" className="mt-8 space-y-1">
+      <nav aria-label="หน้าต่างๆ" className="mt-8 space-y-1">
         <Suspense>
           {nav.map((item) => (
             <NavLink key={item.href} {...item} />
@@ -101,7 +105,7 @@ export function Sidebar({ session, summary }: { session: Session; summary: Summa
           </form>
         </div>
       </div>
-    </aside>
+    </SidebarFrame>
   );
 }
 

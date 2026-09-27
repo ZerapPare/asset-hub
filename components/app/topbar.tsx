@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Logo } from "@/components/brand/logo";
 import { BellIcon, SearchIcon, SparkleIcon, UploadIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
+import { SidebarToggle } from "./sidebar-state";
 
 type Mode = "keyword" | "semantic";
 
@@ -19,10 +19,7 @@ export function Topbar({ userName }: { userName: string }) {
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur">
       <div className="flex items-center gap-3 px-4 py-3 sm:px-8">
-        <Link href="/assets" className="lg:hidden">
-          <span className="sr-only">AssetHub</span>
-          <Logo compact />
-        </Link>
+        <SidebarToggle />
 
         <form action="/search" role="search" className="flex min-w-0 flex-1 items-center gap-3">
           <label className="relative min-w-0 flex-1">

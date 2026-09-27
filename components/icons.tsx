@@ -186,3 +186,9 @@ export const MenuIcon = (p: IconProps) => (
     <path d="M4 6h16M4 12h16M4 18h16" />
   </Stroke>
 );
+
+export const CloseIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Stroke>
+);
