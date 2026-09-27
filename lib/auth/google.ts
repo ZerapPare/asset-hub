@@ -7,6 +7,29 @@ const jwks = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/ce
 
 export const OAUTH_COOKIE = "oauth_state";
 
+export type OAuthState = { state: string; nonce: string; returnTo: string };
+
+// รับเฉพาะ path ในเว็บเรา กัน open redirect
+export function safeReturnTo(value: string | null | undefined) {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/assets";
+}
+
+export function encodeOAuthState(value: OAuthState) {
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+
+export function decodeOAuthState(raw: string | undefined): OAuthState | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(Buffer.from(raw, "base64url").toString());
+    return typeof value.state === "string" && typeof value.nonce === "string"
+      ? { ...value, returnTo: safeReturnTo(value.returnTo) }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export type GoogleProfile = { sub: string; email: string; name: string; picture?: string };
 
 // code ตรงกับ ?error= ของหน้า login

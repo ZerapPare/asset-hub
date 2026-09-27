@@ -13,7 +13,7 @@ const modes: { value: Mode; label: string; Icon: typeof SearchIcon }[] = [
   { value: "semantic", label: "Semantic", Icon: SparkleIcon },
 ];
 
-export function Topbar({ userName }: { userName: string }) {
+export function Topbar({ userName, avatarUrl }: { userName: string; avatarUrl: string | null }) {
   const [mode, setMode] = useState<Mode>("keyword");
 
   return (
@@ -69,7 +69,7 @@ export function Topbar({ userName }: { userName: string }) {
         </button>
 
         <Link href="/settings" aria-label="ตั้งค่าบัญชี" className="hidden shrink-0 sm:block">
-          <Avatar name={userName} size="lg" />
+          <Avatar name={userName} src={avatarUrl} size="lg" />
         </Link>
       </div>
     </header>

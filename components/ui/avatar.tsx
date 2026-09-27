@@ -8,8 +8,14 @@ function colorFor(name: string) {
   return colors[hash % colors.length];
 }
 
-export function Avatar({ name, size = "sm" }: { name: string; size?: "sm" | "lg" }) {
+type Props = { name: string; src?: string | null; size?: "sm" | "lg" };
+
+export function Avatar({ name, src, size = "sm" }: Props) {
   const sizeClass = size === "lg" ? "size-12 text-base" : "size-6 text-[0.65rem]";
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" referrerPolicy="no-referrer" className={`shrink-0 rounded-full object-cover ${sizeClass}`} />;
+  }
   return (
     <span
       aria-hidden="true"

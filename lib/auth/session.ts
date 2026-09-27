@@ -4,12 +4,13 @@ import { cookies } from "next/headers";
 export const SESSION_COOKIE = "session";
 const SESSION_TTL = 60 * 60 * 8;
 
+export type AuthMethod = "google" | "password";
+
+// ชื่อ/อีเมลอ่านจาก DB ผ่าน getCurrentUser()
 export type Session = {
-  sub: string;
-  email: string;
-  name: string;
-  picture?: string;
-  amr: "google" | "password";
+  userId: string;
+  ver: number;
+  amr: AuthMethod;
   authTime: number;
 };
 
@@ -27,26 +28,26 @@ export const sessionCookieOptions = {
   maxAge: SESSION_TTL,
 };
 
-export function signSession({ sub, email, name, picture, amr }: Omit<Session, "authTime">) {
-  return new SignJWT({ email, name, picture, amr })
+export function signSession({ userId, ver, amr }: Omit<Session, "authTime">) {
+  return new SignJWT({ ver, amr })
     .setProtectedHeader({ alg: "HS256" })
-    .setSubject(sub)
+    .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL}s`)
     .sign(secret());
 }
 
+// เช็กแค่ลายเซ็น JWT ไม่แตะ DB
 export async function readSession(): Promise<Session | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
+    if (!payload.sub || typeof payload.ver !== "number") return null;
     return {
-      sub: payload.sub!,
-      email: payload.email as string,
-      name: payload.name as string,
-      picture: payload.picture as string | undefined,
-      amr: payload.amr as Session["amr"],
+      userId: payload.sub,
+      ver: payload.ver,
+      amr: payload.amr === "google" ? "google" : "password",
       authTime: payload.iat!,
     };
   } catch {

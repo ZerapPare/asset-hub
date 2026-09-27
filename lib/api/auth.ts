@@ -11,6 +11,7 @@ export async function login(email: string, password: string): Promise<LoginResul
     });
     if (res.ok) return { ok: true };
     if (res.status === 401) return { ok: false, message: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
+    if (res.status === 403) return { ok: false, message: "บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ" };
   } catch {}
   return { ok: false, message: "เข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง" };
 }

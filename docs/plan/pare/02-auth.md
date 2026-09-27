@@ -129,22 +129,22 @@ users.created_at, users.updated_at
 - `JWT_SECRET`
 
 ## Checklist
-- [ ] สร้าง OAuth Client ใน Google Cloud Console (redirect URI สำหรับ localhost และ CloudFront)
-- [ ] `GET /api/auth/google` + state cookie + รองรับ `returnTo` (กลับมาหน้าเดิมหลังยืนยัน)
-- [ ] `GET /api/auth/google/callback` + verify id_token + เช็กโดเมน + upsert user
-- [ ] `POST /api/auth/login` (อีเมล + รหัสผ่าน)
-- [ ] `PUT /api/me/password` (ตั้ง / เปลี่ยน / ลืมรหัสผ่านผ่าน Google)
-- [ ] `POST /api/auth/logout`
-- [ ] `requireUser()` middleware + เช็ก status และ token_version
-- [ ] `GET /api/me` (+ `hasPassword`, `recentGoogleAuth`)
-- [ ] หน้า Login: ปุ่ม "เข้าสู่ระบบด้วย Google" + ฟอร์มอีเมล/รหัสผ่าน + ข้อความแนะนำ
-- [ ] หน้าโปรไฟล์: ปุ่ม "ตั้งรหัสผ่าน" / "เปลี่ยนรหัสผ่าน"
-- [ ] แถบแนะนำตั้งรหัสผ่านบนหน้าหลัก (ปิดได้)
-- [ ] Rate limit ของ login
-- [ ] ทดสอบ:
-  - อีเมลนอกโดเมนต้องถูกปฏิเสธ
+- [x] สร้าง OAuth Client ใน Google Cloud Console (localhost) — CloudFront เพิ่มตอน deploy
+- [x] `GET /api/auth/google` + state cookie + รองรับ `returnTo`
+- [x] `GET /api/auth/google/callback` + verify id_token + เช็กโดเมน + upsert user (`lib/auth/users.ts`)
+- [x] `POST /api/auth/login` (อีเมล + รหัสผ่าน, bcryptjs)
+- [x] `PUT /api/me/password` (ตั้ง / เปลี่ยน / ลืมรหัสผ่านผ่าน Google)
+- [x] `POST /api/auth/logout`
+- [x] เช็ก status + token_version ทุก request — `getCurrentUser()` ใน `lib/auth/current-user.ts`
+- [ ] `GET /api/me` — ยังไม่ต้องใช้ (หน้าเว็บเป็น Server Component อ่าน `getCurrentUser()` ตรง)
+- [x] หน้า Login: ปุ่ม Google + ฟอร์มอีเมล/รหัสผ่าน + ข้อความแนะนำ
+- [x] หน้าตั้งค่าบัญชี `/settings`: "ตั้งรหัสผ่าน" / "เปลี่ยนรหัสผ่าน"
+- [x] แถบแนะนำตั้งรหัสผ่าน (ปิดได้, จำใน localStorage)
+- [ ] Rate limit ของ login — ต้องใช้ที่เก็บกลาง ทำภายหลัง
+- [x] ทดสอบผ่าน API (ยกเว้นขั้นกดเลือกบัญชี Google):
   - user ที่ยังไม่ตั้งรหัสต้อง login ด้วยรหัสผ่านไม่ได้ (ได้ข้อความ generic)
-  - user ที่ DISABLED ต้อง login ไม่ได้ทั้งสองวิธี
-  - เปลี่ยนรหัสโดยไม่ใส่รหัสเดิม และไม่ได้เพิ่ง Google login → ต้องได้ 403
+  - user ที่ DISABLED login ไม่ได้ และ session เดิมเด้งไป /login โดยไม่วนลูป
+  - เปลี่ยนรหัสโดยไม่ใส่รหัสเดิม และไม่ได้เพิ่ง Google login → 403
   - ลืมรหัส: Google login แล้วเปลี่ยนรหัสได้โดยไม่ต้องใส่รหัสเดิม
-  - เปลี่ยนรหัสแล้วต้องใช้รหัสเดิมไม่ได้ และ session บนเครื่องอื่นต้องหลุด
+  - เปลี่ยนรหัสแล้วรหัสเดิมใช้ไม่ได้ และ session เก่าหลุด
+- [ ] ทดสอบ Google login จริงในเบราว์เซอร์ (อีเมลนอกโดเมน, บันทึก user ลง DB)

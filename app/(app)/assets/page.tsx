@@ -4,7 +4,7 @@ import { AssetCard } from "@/components/assets/asset-card";
 import { UploadIcon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { listAssets } from "@/lib/api/assets";
-import { readSession } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import type { FileType } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Asset ทั้งหมด — AssetHub" };
@@ -16,7 +16,7 @@ const types: Record<string, { value: FileType; title: string }> = {
 export default async function AssetsPage({ searchParams }: PageProps<"/assets">) {
   const { type } = await searchParams;
   const filter = typeof type === "string" ? types[type] : undefined;
-  const [session, assets] = await Promise.all([readSession(), listAssets({ type: filter?.value })]);
+  const [user, assets] = await Promise.all([getCurrentUser(), listAssets({ type: filter?.value })]);
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">
@@ -41,7 +41,7 @@ export default async function AssetsPage({ searchParams }: PageProps<"/assets">)
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {assets.map((asset) => (
-            <AssetCard key={asset.id} asset={asset} meName={session!.name} />
+            <AssetCard key={asset.id} asset={asset} meName={user!.display_name} />
           ))}
         </div>
       )}

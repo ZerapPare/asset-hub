@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import { LoginHero } from "@/components/auth/login-hero";
 import { Logo } from "@/components/brand/logo";
-import { readSession } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ const oauthErrors: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  if (await readSession()) redirect("/assets");
+  if (await getCurrentUser()) redirect("/assets");
 
   const { error } = await searchParams;
   const initialError = typeof error === "string" ? oauthErrors[error] : undefined;

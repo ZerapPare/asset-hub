@@ -16,13 +16,13 @@ import {
   TagIcon,
 } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
-import type { Session } from "@/lib/auth/session";
+import type { CurrentUser } from "@/lib/auth/current-user";
 import { formatBytes } from "@/lib/format";
 import type { Summary } from "@/lib/types";
 import { NavLink } from "./nav-link";
 import { SidebarCloseButton, SidebarFrame } from "./sidebar-state";
 
-export function Sidebar({ session, summary }: { session: Session; summary: Summary }) {
+export function Sidebar({ user, summary }: { user: CurrentUser; summary: Summary }) {
   const { storage, collections } = summary;
   const nav = [
     // หน้า Dashboard เป็นงานคนที่ 2
@@ -89,10 +89,10 @@ export function Sidebar({ session, summary }: { session: Session; summary: Summa
         </div>
 
         <div className="flex items-center gap-3 border-b border-line-soft px-2 pb-4">
-          <Avatar name={session.name} size="lg" />
+          <Avatar name={user.display_name} src={user.avatar_url} size="lg" />
           <div className="min-w-0">
-            <p className="truncate font-semibold">{session.name}</p>
-            <p className="truncate text-sm text-ink-muted">{session.email}</p>
+            <p className="truncate font-semibold">{user.display_name}</p>
+            <p className="truncate text-sm text-ink-muted">{user.email}</p>
           </div>
         </div>
 
