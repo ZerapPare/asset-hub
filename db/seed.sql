@@ -6,8 +6,12 @@
 --   * document_embeddings / image_embeddings — must come from Bedrock via the processing worker.
 --   * audit_logs — written by the app.
 -- s3_key values are fake, so preview/download of seed assets will not work.
--- Seed users have no password (password_hash NULL). Change the email domain if
--- ALLOWED_EMAIL_DOMAIN is not kmitl.ac.th.
+-- Change the email domain if ALLOWED_EMAIL_DOMAIN is not kmitl.ac.th.
+--
+-- Test login (password login only; google_sub is fake so Google sign-in cannot match):
+--   email     seed.alice@kmitl.ac.th / seed.bob@... / seed.carol@... / seed.dave@...
+--   password  seedpass123   (same for every seed user; bcrypt cost 12 like lib/auth/password.ts)
+--   dave is DISABLED -> login must return 403 ACCOUNT_DISABLED
 --
 -- Scenario
 --   alice  ACTIVE    owns most assets; OWNER of "Project Phoenix" and "Archived 2024"
@@ -52,12 +56,16 @@ WHERE LOWER(BTRIM(t.name)) IN (
 -- ============================================================
 -- 2) Users
 -- ============================================================
-INSERT INTO users (user_id, google_sub, email, display_name, verified_at, status)
-VALUES
-    ('11111111-1111-1111-1111-000000000001', 'seed-alice', 'seed.alice@kmitl.ac.th', 'Alice Marketing', NOW(), 'ACTIVE'),
-    ('11111111-1111-1111-1111-000000000002', 'seed-bob',   'seed.bob@kmitl.ac.th',   'Bob Designer',    NOW(), 'ACTIVE'),
-    ('11111111-1111-1111-1111-000000000003', 'seed-carol', 'seed.carol@kmitl.ac.th', 'Carol IT',        NOW(), 'ACTIVE'),
-    ('11111111-1111-1111-1111-000000000004', 'seed-dave',  'seed.dave@kmitl.ac.th',  'Dave Disabled',   NOW(), 'DISABLED');
+-- password_hash = bcrypt('seedpass123'), see header
+INSERT INTO users (user_id, google_sub, email, display_name, verified_at, status, password_hash, password_set_at)
+SELECT v.user_id::uuid, v.google_sub, v.email, v.display_name, NOW(), v.status,
+       '$2b$12$bHfYpVs28dA2ByfduvOg8.2SqpJVvevLUaCrOoKoA39eKxuTR0woi', NOW()
+FROM (VALUES
+    ('11111111-1111-1111-1111-000000000001', 'seed-alice', 'seed.alice@kmitl.ac.th', 'Alice Marketing', 'ACTIVE'),
+    ('11111111-1111-1111-1111-000000000002', 'seed-bob',   'seed.bob@kmitl.ac.th',   'Bob Designer',    'ACTIVE'),
+    ('11111111-1111-1111-1111-000000000003', 'seed-carol', 'seed.carol@kmitl.ac.th', 'Carol IT',        'ACTIVE'),
+    ('11111111-1111-1111-1111-000000000004', 'seed-dave',  'seed.dave@kmitl.ac.th',  'Dave Disabled',   'DISABLED')
+) AS v (user_id, google_sub, email, display_name, status);
 
 -- ============================================================
 -- 3) Assets
