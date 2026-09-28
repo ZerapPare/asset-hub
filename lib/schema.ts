@@ -1,5 +1,5 @@
-// Enum และ row type ที่ตรงกับ db/migrations/0001_schema.sql
-// แก้ schema เมื่อไร ต้องแก้ไฟล์นี้ให้ตรงด้วย
+// Enum และ row type ที่แอปใช้งานจาก db/migrations/0001_schema.sql
+// ไฟล์นี้เขียนด้วยมือ จึงต้องแก้ให้ตรงกันทุกครั้งที่ schema เปลี่ยน
 
 export const VISIBILITIES = ["ORGANIZATION", "TEAM", "PRIVATE"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
