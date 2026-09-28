@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BellIcon, UploadIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
+import { UploadLink } from "@/components/upload/upload-link";
 import { SidebarToggle } from "./sidebar-state";
 import { TopbarSearch, TopbarSearchFallback } from "./topbar-search";
 
@@ -17,13 +18,10 @@ export function Topbar({ userName, avatarUrl }: { userName: string; avatarUrl: s
           <TopbarSearch />
         </Suspense>
 
-        <Link
-          href="/upload"
-          className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-brand px-4 font-semibold text-white transition hover:bg-brand-hover"
-        >
+        <UploadLink className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-brand px-4 font-semibold text-white transition hover:bg-brand-hover">
           <UploadIcon className="size-5" />
           <span className="hidden sm:inline">อัปโหลด</span>
-        </Link>
+        </UploadLink>
 
         <button
           type="button"
