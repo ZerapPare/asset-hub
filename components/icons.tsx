@@ -66,6 +66,19 @@ export const GridIcon = (p: IconProps) => (
   </Stroke>
 );
 
+export const ListIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+  </Stroke>
+);
+
+export const FilterIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M4 6h16M7 12h10M10 18h4" />
+  </Stroke>
+);
+
 export const LayersIcon = (p: IconProps) => (
   <Stroke {...p}>
     <path d="M12 3 2 8l10 5 10-5-10-5z" />
@@ -184,6 +197,19 @@ export const ChevronRightIcon = (p: IconProps) => (
 export const MenuIcon = (p: IconProps) => (
   <Stroke {...p}>
     <path d="M4 6h16M4 12h16M4 18h16" />
+  </Stroke>
+);
+
+export const CalendarIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </Stroke>
+);
+
+export const SortIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M7 4v16M3.5 7.5 7 4l3.5 3.5M17 20V4M13.5 16.5 17 20l3.5-3.5" />
   </Stroke>
 );
 
