@@ -192,3 +192,17 @@ export const CloseIcon = (p: IconProps) => (
     <path d="M6 6l12 12M18 6 6 18" />
   </Stroke>
 );
+
+export const PencilIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+    <path d="m15 5 4 4" />
+  </Stroke>
+);
+
+export const CloudUploadIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M12 13v8M8 17l4-4 4 4" />
+    <path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3" />
+  </Stroke>
+);

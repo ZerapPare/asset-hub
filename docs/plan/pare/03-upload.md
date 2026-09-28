@@ -65,11 +65,15 @@
 - backend ไม่ต้องทำอะไรเพิ่ม
 
 ## Checklist
-- [ ] S3 client (`lib/s3.ts`) รองรับทั้ง MinIO และ AWS
-- [ ] allowlist ของ mime type + `MAX_FILE_SIZE` ใน config
-- [ ] `POST /api/assets/upload-url`
-- [ ] `POST /api/assets/:id/complete` + HeadObject
-- [ ] ส่งข้อความเข้า SQS (หรือ stub ไว้ก่อนระหว่างรอคนที่ 2)
-- [ ] บันทึก audit log `UPLOAD`
-- [ ] หน้า Upload: เลือกไฟล์หลายไฟล์, visibility, tag, collection, progress
-- [ ] ทดสอบ: ไฟล์เกินขนาดต้องถูก S3 ปฏิเสธ, mime ผิดต้องถูกปฏิเสธ, คนอื่นเรียก complete ไม่ได้
+- [x] S3 client (`lib/s3.ts`) รองรับทั้ง MinIO และ AWS
+- [x] allowlist ของ mime type + `MAX_FILE_SIZE` — `lib/upload/rules.ts` (ใช้ร่วมหน้าเว็บ/server)
+- [x] `POST /api/assets/upload-url`
+- [x] `POST /api/assets/:id/complete` + HeadObject
+- [ ] ส่งข้อความเข้า SQS — ตอนนี้ `enqueueProcessing()` แค่ log (`lib/processing/queue.ts`)
+- [x] บันทึก audit log `UPLOAD`
+- [x] `PATCH /api/assets/:id` — ชื่อ, คำอธิบาย, visibility, Tag, Collection ในครั้งเดียว (`lib/assets/details.ts`)
+- [x] หน้าต่าง Upload (`?upload=1`): ลากวาง, หลายไฟล์ (พร้อมกัน 3), progress, visibility, Tag, Collection
+- [x] หน้า Library ดึงจาก DB จริง (`listAssets` + `visibleAssetsWhere`)
+- [x] ทดสอบ API: ชนิด/ขนาดผิด → 400, complete ก่อนอัปโหลด → 400, complete ซ้ำ → 409, Collection ไม่มีสิทธิ์ → 403, PRIVATE ขณะอยู่ใน Collection → 409
+- [ ] ทดสอบหน้าต่าง Upload ในเบราว์เซอร์กับไฟล์จริง (ลากวาง, หลายไฟล์, ไฟล์ถูกปฏิเสธ)
+- [ ] ลบ asset ที่ค้าง `UPLOADING` นานเกิน 1 ชม. (job)

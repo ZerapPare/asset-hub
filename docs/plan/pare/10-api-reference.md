@@ -20,7 +20,7 @@
 | GET | `/api/assets` | filter/sort ดู [08](08-filter-sort.md) |
 | GET | `/api/assets/:id` | canView |
 | GET | `/api/assets/:id/download` | canView |
-| PATCH | `/api/assets/:id` | owner |
+| PATCH | `/api/assets/:id` | owner — `{ displayName?, description?, visibility?, tags?, collectionIds? }` (tags/collectionIds = แทนที่ทั้งชุด) |
 | DELETE | `/api/assets/:id` | owner |
 
 ## Tags — [06](06-tags.md)
