@@ -5,9 +5,18 @@ import { CleanForm } from "@/components/search/clean-form";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { OWNER_OPTIONS, UPLOADED_OPTIONS } from "@/components/search/options";
 import { FilterSelect } from "@/components/search/filter-select";
-import { MOCK_COLLECTION_OPTIONS, MOCK_TAG_OPTIONS, mockSearch } from "@/components/search/mock";
+import { mockSemanticSearch } from "@/components/search/mock";
 import { SearchResultCard } from "@/components/search/search-result-card";
-import type { FilterOption, SearchFilters, SearchMode, SearchView } from "@/components/search/types";
+import type { FilterOption, SearchFilters, SearchMode, SearchResult, SearchView } from "@/components/search/types";
+import {
+  SEARCH_LIMIT,
+  SEARCH_SORTS,
+  SearchTimeoutError,
+  UPLOADED_RANGES,
+  getSearchFilterOptions,
+  searchAssets,
+} from "@/lib/assets/search";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const metadata: Metadata = { title: "ค้นหา — AssetHub" };
 
@@ -42,16 +51,27 @@ const examples: Record<SearchMode, string[]> = {
   semantic: ["รูปคนประชุมในออฟฟิศ", "เอกสารเกี่ยวกับสวัสดิการพนักงาน"],
 };
 
-// TODO: ดึงจาก DB — Collection ที่ผู้ใช้เป็นสมาชิก และ Tag ทั้งหมด
-const collectionOptions = MOCK_COLLECTION_OPTIONS;
-const tagOptions = MOCK_TAG_OPTIONS;
+// ค่าใน URL ที่ไม่อยู่ในรายการ ถือว่าไม่ได้เลือก (ไม่ขึ้น chip และไม่ส่งไป query)
+const allowed: Partial<Record<keyof Params, readonly string[]>> = {
+  type: ["document", "image"],
+  uploaded: UPLOADED_RANGES,
+  owner: ["me"],
+  sort: SEARCH_SORTS,
+  view: ["grid"],
+  mode: ["semantic"],
+};
 
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {
   const raw = await searchParams;
   const params = Object.fromEntries(
-    PARAM_KEYS.map((key) => [key, typeof raw[key] === "string" ? raw[key].trim() : ""]),
+    PARAM_KEYS.map((key) => {
+      const value = typeof raw[key] === "string" ? raw[key].trim() : "";
+      const list = allowed[key];
+      return [key, list && !list.includes(value) ? "" : value];
+    }),
   ) as Params;
   const mode: SearchMode = params.mode === "semantic" ? "semantic" : "keyword";
+  if (mode === "semantic" && !sortOptions.semantic.some((o) => o.value === params.sort)) params.sort = "";
   const view: SearchView = params.view === "grid" ? "grid" : "list";
   const { q } = params;
   const filters: SearchFilters = { uploaded: params.uploaded, owner: params.owner, collection: params.collection, tag: params.tag };
@@ -69,8 +89,29 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
 
   if (!q) return <NoQuery />;
 
-  // TODO: เชื่อม searchAssets() / semantic search
-  const results = mockSearch(q, mode, params.type, filters);
+  const user = (await getCurrentUser())!;
+  const { collections: collectionOptions, tags: tagOptions } = await getSearchFilterOptions(user.user_id);
+
+  let results: SearchResult[] = [];
+  let timedOut = false;
+  if (mode === "keyword") {
+    try {
+      results = await searchAssets(user.user_id, q, {
+        type: params.type === "image" ? "IMAGE" : params.type === "document" ? "DOCUMENT" : undefined,
+        uploaded: (params.uploaded || undefined) as (typeof UPLOADED_RANGES)[number] | undefined,
+        mine: params.owner === "me",
+        collectionId: params.collection || undefined,
+        tag: params.tag || undefined,
+        sort: (params.sort || undefined) as (typeof SEARCH_SORTS)[number] | undefined,
+      });
+    } catch (error) {
+      if (!(error instanceof SearchTimeoutError)) throw error;
+      timedOut = true;
+    }
+  } else {
+    // TODO: Semantic Search จริง (pgvector + Bedrock)
+    results = mockSemanticSearch(q, params.type, filters);
+  }
 
   const activeFilters = FILTER_KEYS.filter((key) => filters[key]);
   const isFiltered = activeFilters.length > 0 || params.type !== "";
@@ -93,7 +134,11 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
           <ModeSwitch mode={mode} href={href} className="md:hidden" />
         </div>
         <p className="text-sm text-ink-muted">
-          พบ <span className="font-semibold text-ink">{results.length}</span> ไฟล์ ·{" "}
+          พบ{" "}
+          <span className="font-semibold text-ink">
+            {results.length >= SEARCH_LIMIT ? `${SEARCH_LIMIT}+` : results.length}
+          </span>{" "}
+          ไฟล์{results.length >= SEARCH_LIMIT && ` (แสดง ${SEARCH_LIMIT} รายการแรก ลองใช้ตัวกรองให้แคบลง)`} ·{" "}
           {mode === "semantic"
             ? "ค้นตามความหมาย แสดงเฉพาะไฟล์ที่ประมวลผลเสร็จแล้ว"
             : "ค้นจากชื่อไฟล์ Tag Collection คำอธิบาย และเนื้อหาในเอกสาร"}
@@ -158,11 +203,16 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         </ul>
       )}
 
-      {results.length === 0 ? (
+      {timedOut ? (
+        <EmptyBlock
+          title="ค้นหาใช้เวลานานเกินไป"
+          body="คำค้นนี้ตรงกับข้อมูลจำนวนมาก ลองใช้คำที่เจาะจงขึ้น หรือเลือกตัวกรองเพื่อจำกัดผลลัพธ์"
+        />
+      ) : results.length === 0 ? (
         isFiltered ? (
           <EmptyBlock
             title="ไม่พบไฟล์ที่ตรงกับตัวกรอง"
-            body={`มีไฟล์ที่ตรงกับ “${q}” แต่ถูกตัวกรองที่เลือกไว้ซ่อนอยู่`}
+            body={`ไม่มีไฟล์ที่ตรงกับ “${q}” ภายใต้ตัวกรองที่เลือก ลองล้างตัวกรองแล้วค้นอีกครั้ง`}
             action={
               <Link href={clearFiltersHref} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover">
                 ล้างตัวกรอง
