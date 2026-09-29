@@ -24,13 +24,15 @@ const watchedSince = new Map<string, number>();
 /** ไฟล์ที่เลิกถามแล้ว (ไม่พบ / หมดสิทธิ์ / session หมด) */
 const stopped = new Set<string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
+/** มี request ค้างอยู่ — กันยิงซ้อนตอนกลับมาเปิดแท็บ / badge ใหม่ mount ระหว่างรอ */
+let inFlight = false;
 
 function pendingIds() {
   return [...listeners.keys()].filter((id) => !stopped.has(id) && PENDING.has(statuses.get(id)!));
 }
 
 function schedule(delay?: number) {
-  if (timer || document.hidden) return;
+  if (timer || inFlight || document.hidden) return;
   const ids = pendingIds();
   if (ids.length === 0) return;
   const oldest = Math.min(...ids.map((id) => watchedSince.get(id) ?? Date.now()));
@@ -46,6 +48,7 @@ async function poll() {
   const ids = pendingIds().slice(0, MAX_IDS_PER_REQUEST);
   if (ids.length === 0 || document.hidden) return;
 
+  inFlight = true;
   try {
     const res = await fetch(`/api/assets/status?ids=${ids.join(",")}`, { cache: "no-store" });
     if (res.status === 401) {
@@ -67,6 +70,8 @@ async function poll() {
     }
   } catch {
     // เน็ตหลุด — ลองใหม่รอบถัดไป
+  } finally {
+    inFlight = false;
   }
   schedule();
 }
