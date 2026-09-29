@@ -8,7 +8,7 @@ import { FileIcon, ImageIcon, LayersIcon, UploadIcon } from "@/components/icons"
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { STORAGE_QUOTA } from "@/lib/config";
-import { getDashboard } from "@/lib/dashboard";
+import { getDashboard } from "@/lib/assets/dashboard";
 import { formatBytes } from "@/lib/format";
 
 export const metadata: Metadata = { title: "แดชบอร์ด — AssetHub" };

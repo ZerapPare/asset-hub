@@ -4,7 +4,7 @@ import { formatBytes, formatShortDate } from "@/lib/format";
 import type { Asset } from "@/lib/types";
 import { AssetThumb } from "./asset-thumb";
 import { fileTypeMeta } from "./file-type";
-import { StatusBadge } from "./status-badge";
+import { LiveStatusBadge } from "./live-status";
 
 export function AssetCard({ asset, meName }: { asset: Asset; meName: string }) {
   const ownerName = asset.owner.isMe ? meName : asset.owner.name;
@@ -18,7 +18,7 @@ export function AssetCard({ asset, meName }: { asset: Asset; meName: string }) {
       <div className="relative">
         <AssetThumb asset={asset} className="aspect-[16/7]" />
         <span className="absolute right-3 top-3">
-          <StatusBadge status={asset.status} solid />
+          <LiveStatusBadge assetId={asset.id} status={asset.status} solid />
         </span>
         <span className={`absolute bottom-3 left-3 rounded-md px-2 py-0.5 text-xs font-bold text-white ${asset.fileType === "DOCUMENT" ? "bg-danger" : "bg-ink"}`}>
           {asset.extension}

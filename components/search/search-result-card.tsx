@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AssetThumb } from "@/components/assets/asset-thumb";
 import { fileTypeMeta } from "@/components/assets/file-type";
-import { StatusBadge } from "@/components/assets/status-badge";
+import { LiveStatusBadge } from "@/components/assets/live-status";
 import { formatBytes, formatShortDate } from "@/lib/format";
 import { Highlight } from "./highlight";
 import type { MatchSource, SearchResult, SearchView } from "./types";
@@ -30,7 +30,9 @@ export function SearchResultCard({
   const grid = view === "grid";
   const shownTags = grid ? tags.slice(0, GRID_TAG_LIMIT) : tags;
   // แสดงเฉพาะสถานะที่ผิดปกติ (Processing / Failed) — Ready ไม่ต้องบอก
-  const status = asset.status !== "READY" && <StatusBadge status={asset.status} solid={grid} />;
+  const status = asset.status !== "READY" && (
+    <LiveStatusBadge assetId={asset.id} status={asset.status} solid={grid} hideWhenReady />
+  );
 
   const title = (
     <h3 className={`min-w-0 font-semibold ${grid ? "truncate" : "break-words"}`}>
