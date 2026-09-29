@@ -17,7 +17,7 @@ export function FilterSelect({ name, label, icon, value, options }: Props) {
 
   return (
     <label
-      className={`flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm transition focus-within:ring-4 focus-within:ring-brand/15 ${
+      className={`flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm transition focus-within:ring-4 focus-within:ring-brand/15 ${
         active ? "border-brand/40 bg-brand-soft text-brand-ink" : "border-line bg-surface text-ink-muted hover:text-ink"
       }`}
     >

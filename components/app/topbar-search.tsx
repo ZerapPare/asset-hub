@@ -1,8 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { SearchIcon, SparkleIcon } from "@/components/icons";
+import { useRef, useState } from "react";
+import { CloseIcon, SearchIcon, SparkleIcon } from "@/components/icons";
 
 type Mode = "keyword" | "semantic";
 
@@ -27,6 +27,15 @@ function SearchForm({ initialQ, initialMode, onSearchPage }: { initialQ: string;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [value, setValue] = useState(initialQ);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // ล้างคำค้น — ถ้าอยู่หน้าผลค้นหา ล้างผลลัพธ์และตัวกรองด้วย (กลับไปหน้า "ยังไม่ได้ค้นหา")
+  const clear = () => {
+    setValue("");
+    inputRef.current?.focus();
+    if (onSearchPage && initialQ) router.push(mode === "semantic" ? "/search?mode=semantic" : "/search");
+  };
 
   const selectMode = (value: Mode) => {
     setMode(value);
@@ -50,12 +59,33 @@ function SearchForm({ initialQ, initialMode, onSearchPage }: { initialQ: string;
           <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ink-subtle" />
         )}
         <input
+          ref={inputRef}
           name="q"
           type="search"
-          defaultValue={initialQ}
+          value={value}
+          // หน้า /search ที่ยังไม่มีคำค้น (รวมถึงหลังกด ×) ให้พิมพ์ต่อได้ทันที
+          autoFocus={onSearchPage && !initialQ}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && value) {
+              e.preventDefault();
+              clear();
+            }
+          }}
           placeholder={mode === "semantic" ? "อธิบายสิ่งที่ต้องการ เช่น รูปทีมงานกำลังประชุม" : "ค้นหาชื่อไฟล์ Tag หรือ Collection"}
-          className="h-12 w-full rounded-xl border border-line bg-canvas pl-12 pr-4 text-ink placeholder:text-ink-subtle outline-none transition focus:border-brand focus:bg-surface focus:ring-4 focus:ring-brand/15"
+          // ซ่อนปุ่ม × ของ browser (ล้างแค่ข้อความ และ Firefox ไม่มี) ใช้ปุ่มของเราแทน
+          className="h-12 w-full rounded-xl border border-line bg-canvas pl-12 pr-12 text-ink placeholder:text-ink-subtle outline-none transition focus:border-brand focus:bg-surface focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
         />
+        {value && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="ล้างคำค้นหา"
+            className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle hover:bg-line-soft hover:text-ink"
+          >
+            <CloseIcon className="size-4" />
+          </button>
+        )}
       </label>
       {mode === "semantic" && <input type="hidden" name="mode" value="semantic" />}
 

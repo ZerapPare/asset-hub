@@ -57,7 +57,7 @@ const allowed: Partial<Record<keyof Params, readonly string[]>> = {
   uploaded: UPLOADED_RANGES,
   owner: ["me"],
   sort: SEARCH_SORTS,
-  view: ["grid"],
+  view: ["list"],
   mode: ["semantic"],
 };
 
@@ -72,7 +72,8 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   ) as Params;
   const mode: SearchMode = params.mode === "semantic" ? "semantic" : "keyword";
   if (mode === "semantic" && !sortOptions.semantic.some((o) => o.value === params.sort)) params.sort = "";
-  const view: SearchView = params.view === "grid" ? "grid" : "list";
+  // ค่าเริ่มต้นเป็น Grid เหมือนหน้า Asset ทั้งหมด
+  const view: SearchView = params.view === "list" ? "list" : "grid";
   const { q } = params;
   const filters: SearchFilters = { uploaded: params.uploaded, owner: params.owner, collection: params.collection, tag: params.tag };
 
@@ -80,7 +81,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const href = (overrides: Partial<Params>) => {
     const next = new URLSearchParams();
     for (const [key, value] of Object.entries({ ...params, ...overrides })) {
-      if (!value || (key === "mode" && value === "keyword") || (key === "view" && value === "list")) continue;
+      if (!value || (key === "mode" && value === "keyword") || (key === "view" && value === "grid")) continue;
       next.set(key, value);
     }
     const qs = next.toString();
@@ -124,16 +125,16 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mx-auto max-w-[1600px] space-y-6">
       <header className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight">
+          <h1 className="min-w-0 break-words text-3xl font-bold tracking-tight">
             ผลการค้นหา “<span className="text-brand-ink">{q}</span>”
           </h1>
           {/* topbar ซ่อนปุ่มเลือกโหมดบนจอเล็ก */}
           <ModeSwitch mode={mode} href={href} className="md:hidden" />
         </div>
-        <p className="text-sm text-ink-muted">
+        <p className="mt-1 text-ink-muted">
           พบ{" "}
           <span className="font-semibold text-ink">
             {results.length >= SEARCH_LIMIT ? `${SEARCH_LIMIT}+` : results.length}
@@ -175,7 +176,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
             {(["q", "mode", "type", ...FILTER_KEYS, "view"] as const).map(
               (key) => params[key] && <input key={key} type="hidden" name={key} value={params[key]} />,
             )}
-            <FilterSelect name="sort" label="เรียง" icon={<SortIcon />} value={params.sort} options={sortOptions[mode]} />
+            <FilterSelect name="sort" label="เรียงตาม" icon={<SortIcon />} value={params.sort} options={sortOptions[mode]} />
           </CleanForm>
           <ViewToggle view={view} href={href} />
         </div>
@@ -237,7 +238,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
           />
         )
       ) : (
-        <section aria-label="ผลการค้นหา" className={view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "space-y-3"}>
+        <section aria-label="ผลการค้นหา" className={view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" : "space-y-3"}>
           {results.map((result) => (
             // Semantic ไม่ไฮไลต์ เพราะไม่ได้ค้นจากคำที่ตรงกัน
             <SearchResultCard key={result.asset.id} result={result} query={mode === "keyword" ? q : ""} layout={view} />
@@ -294,7 +295,7 @@ function ViewToggle({ view, href }: { view: SearchView; href: (overrides: Partia
 
   return (
     // มือถือ Grid เหลือคอลัมน์เดียว แทบไม่ต่างจาก List จึงซ่อนปุ่มนี้
-    <nav aria-label="รูปแบบการแสดงผล" className="hidden h-10 overflow-hidden rounded-xl border border-line bg-surface sm:flex">
+    <nav aria-label="รูปแบบการแสดงผล" className="hidden h-12 overflow-hidden rounded-xl border border-line bg-surface sm:flex">
       {items.map(({ value, label, Icon }) => {
         const active = view === value;
         return (
@@ -318,7 +319,7 @@ function ViewToggle({ view, href }: { view: SearchView; href: (overrides: Partia
 
 function EmptyBlock({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-14 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
       <span className="flex size-12 items-center justify-center rounded-full bg-canvas text-ink-subtle">
         <SearchIcon className="size-6" />
       </span>
@@ -337,7 +338,7 @@ function NoQuery() {
         <SearchIcon className="size-7" />
       </span>
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">ค้นหาไฟล์ในองค์กร</h1>
+        <h1 className="text-3xl font-bold tracking-tight">ค้นหาไฟล์ในองค์กร</h1>
         <p className="text-ink-muted">พิมพ์คำค้นในช่องค้นหาด้านบน หรือลองจากตัวอย่าง</p>
       </div>
       <div className="w-full space-y-3 pt-2 text-sm">

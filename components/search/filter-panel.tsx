@@ -53,7 +53,7 @@ export function FilterPanel({ values, keep, collectionOptions, tagOptions, activ
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="search-filter-panel"
-        className={`flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm font-semibold transition ${
+        className={`flex h-12 items-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold transition ${
           activeCount > 0 ? "border-brand/40 bg-brand-soft text-brand-ink" : "border-line bg-surface text-ink-muted hover:text-ink"
         }`}
       >
@@ -70,7 +70,7 @@ export function FilterPanel({ values, keep, collectionOptions, tagOptions, activ
             id="search-filter-panel"
             action="/search"
             aria-label="ตัวกรอง"
-            className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-12 sm:w-96 sm:rounded-2xl sm:border sm:border-line sm:shadow-xl"
+            className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-14 sm:w-96 sm:rounded-2xl sm:border sm:border-line sm:shadow-xl"
           >
             {Object.entries(keep).map(([name, value]) => value && <input key={name} type="hidden" name={name} value={value} />)}
 

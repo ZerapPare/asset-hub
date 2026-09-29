@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AssetThumb } from "@/components/assets/asset-thumb";
 import { fileTypeMeta } from "@/components/assets/file-type";
 import { LiveStatusBadge } from "@/components/assets/live-status";
+import { Avatar } from "@/components/ui/avatar";
 import { formatBytes, formatShortDate } from "@/lib/format";
 import { Highlight } from "./highlight";
 import type { MatchSource, SearchResult, SearchView } from "./types";
@@ -43,17 +44,27 @@ export function SearchResultCard({
     </h3>
   );
 
+  // metadata จัดแบบเดียวกับ AssetCard (หน้า Asset ทั้งหมด)
   const details = (
     <>
-      <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-ink-muted">
-        <span className={`size-2 rounded-sm ${fileTypeMeta[asset.fileType].swatch}`} aria-hidden="true" />
-        {asset.extension} · {formatBytes(asset.size)} · {asset.owner.isMe ? "คุณ" : asset.owner.name} ·{" "}
-        {formatShortDate(asset.createdAt)}
-      </p>
+      <div className="space-y-1.5 text-sm text-ink-muted">
+        <p className="flex items-center gap-1.5">
+          <span className={`size-2 rounded-sm ${fileTypeMeta[asset.fileType].swatch}`} aria-hidden="true" />
+          {asset.extension} · {formatBytes(asset.size)}
+        </p>
+        <p className="flex items-center gap-1.5">
+          <Avatar name={asset.owner.name} />
+          <span className="truncate font-medium text-ink">{asset.owner.isMe ? "คุณ" : asset.owner.name}</span>·{" "}
+          {formatShortDate(asset.createdAt)}
+        </p>
+      </div>
 
       {snippet && (
-        <p className="line-clamp-2 rounded-lg bg-canvas px-3 py-2 text-sm leading-relaxed text-ink-muted">
-          <Highlight text={snippet} query={query} />
+        // line-clamp อยู่ใน span ไม่ใช่กล่องที่มี padding — ไม่งั้นบรรทัดที่ 3 จะโผล่ในส่วน padding
+        <p className="rounded-lg bg-canvas px-3 py-2 text-sm leading-relaxed text-ink-muted">
+          <span className="line-clamp-2">
+            <Highlight text={snippet} query={query} />
+          </span>
         </p>
       )}
 
@@ -83,10 +94,17 @@ export function SearchResultCard({
     return (
       <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface transition hover:-translate-y-0.5 hover:shadow-md focus-within:ring-4 focus-within:ring-brand/20">
         <div className="relative">
-          <AssetThumb asset={asset} className="aspect-[16/9]" />
+          <AssetThumb asset={asset} className="aspect-[16/7]" />
           {status && <span className="absolute right-3 top-3">{status}</span>}
+          <span
+            className={`absolute bottom-3 left-3 rounded-md px-2 py-0.5 text-xs font-bold text-white ${
+              asset.fileType === "DOCUMENT" ? "bg-danger" : "bg-ink"
+            }`}
+          >
+            {asset.extension}
+          </span>
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex flex-1 flex-col gap-2 px-4 py-3.5">
           {title}
           {details}
         </div>
