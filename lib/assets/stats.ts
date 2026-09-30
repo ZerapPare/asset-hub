@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { visibleAssetsWhere } from "@/lib/access";
 import { sql } from "@/lib/db";
 import type { FileType } from "@/lib/types";
 
@@ -56,3 +57,19 @@ export const getAssetTotals = cache(async (userId: string): Promise<AssetTotals>
     failed: row.failed,
   };
 });
+
+export type VisibleAssetCounts = { total: number; documents: number; images: number };
+
+// จำนวน Asset ที่ user มองเห็น (เงื่อนไขเดียวกับหน้า Library) ใช้กับตัวเลขใน sidebar
+export async function countVisibleAssets(userId: string): Promise<VisibleAssetCounts> {
+  const [row] = await sql<VisibleAssetCounts[]>`
+    SELECT
+      COUNT(*)::int                                         AS total,
+      COUNT(*) FILTER (WHERE a.file_type = 'DOCUMENT')::int AS documents,
+      COUNT(*) FILTER (WHERE a.file_type = 'IMAGE')::int    AS images
+    FROM assets a
+    WHERE ${visibleAssetsWhere(userId)}
+      AND a.processing_status <> 'UPLOADING'
+  `;
+  return row;
+}
