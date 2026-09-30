@@ -6,7 +6,8 @@ import { formatBytes } from "@/lib/format";
 import type { FileType } from "@/lib/types";
 import type { Details } from "./upload-client";
 
-export type Phase = "rejected" | "queued" | "uploading" | "processing" | "failed";
+// ready = เลือกไฟล์แล้ว รอผู้ใช้กดอัปโหลด (ยังไม่ส่งอะไรขึ้น server)
+export type Phase = "rejected" | "ready" | "queued" | "uploading" | "processing" | "failed";
 
 export type UploadItem = {
   key: string;
@@ -19,8 +20,6 @@ export type UploadItem = {
   error?: string;
   assetId?: string;
   details: Details;
-  // ค่าล่าสุดที่อยู่ใน DB (null = ยังไม่ได้สร้าง asset)
-  saved: Details | null;
 };
 
 type Props = { item: UploadItem; selected: boolean; onSelect: () => void; onRemove: () => void };
@@ -47,13 +46,16 @@ export function UploadItemCard({ item, selected, onSelect, onRemove }: Props) {
   const current = item.phase === "processing" ? 1 : 0;
   const percent = item.phase === "processing" ? 100 : Math.round(item.progress * 100);
 
+  // เอาออกได้เฉพาะไฟล์ที่ยังไม่ได้กดอัปโหลด
+  const removable = item.phase === "ready";
+
   return (
-    <li>
+    <li className="relative">
       <button
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        className={`flex w-full gap-3 rounded-2xl border bg-surface p-4 text-left transition ${
+        className={`flex w-full gap-3 rounded-2xl border bg-surface p-4 text-left transition ${removable ? "pr-10" : ""} ${
           selected ? "border-brand ring-2 ring-brand/15" : "border-line hover:border-ink-subtle"
         }`}
       >
@@ -77,7 +79,7 @@ export function UploadItemCard({ item, selected, onSelect, onRemove }: Props) {
           <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium">
             {steps.map((label, i) => {
               const done = i < current;
-              const active = i === current && item.phase !== "queued";
+              const active = i === current && (item.phase === "uploading" || item.phase === "processing");
               return (
                 <span key={label} className="flex items-center gap-1">
                   {i > 0 && <span className="h-px w-3 bg-line" aria-hidden="true" />}
@@ -95,6 +97,16 @@ export function UploadItemCard({ item, selected, onSelect, onRemove }: Props) {
           </span>
         </span>
       </button>
+      {removable && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`เอา ${item.file.name} ออก`}
+          className="absolute right-3 top-3 rounded-md p-1 text-ink-muted hover:text-ink"
+        >
+          <CloseIcon className="size-4" />
+        </button>
+      )}
     </li>
   );
 }

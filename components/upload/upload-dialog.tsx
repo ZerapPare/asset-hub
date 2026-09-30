@@ -6,7 +6,7 @@ import { CheckIcon, CloseIcon, CloudUploadIcon, FileIcon, ImageIcon, PencilIcon 
 import type { EditableCollection } from "@/lib/collections/editable";
 import { ACCEPT, checkFile, extensionOf, nameWithoutExtension } from "@/lib/upload/rules";
 import { DetailsPanel } from "./details-panel";
-import { saveDetails, uploadFile, type Details } from "./upload-client";
+import { uploadFile, type Details } from "./upload-client";
 import { UploadItemCard, type UploadItem } from "./upload-item";
 
 const CONCURRENCY = 3;
@@ -28,14 +28,13 @@ function newItem(file: File): UploadItem {
     extension: extensionOf(file.name),
     ...(checked.ok
       ? {
-          phase: "queued",
+          phase: "ready",
           fileType: checked.fileType,
           previewUrl: checked.fileType === "IMAGE" ? URL.createObjectURL(file) : undefined,
         }
       : { phase: "rejected", error: checked.message }),
     progress: 0,
     details,
-    saved: null,
   };
 }
 
@@ -51,8 +50,6 @@ export function UploadDialog({ userName, collections }: Props) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>();
   const [dragging, setDragging] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string>();
 
   const patch = (key: string, p: Partial<UploadItem>) =>
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...p } : i)));
@@ -69,16 +66,9 @@ export function UploadDialog({ userName, collections }: Props) {
     const next = items.filter((i) => i.phase === "queued" && !started.current.has(i.key)).slice(0, CONCURRENCY - active);
     for (const item of next) {
       started.current.add(item.key);
-      const visibility = item.details.visibility;
       patch(item.key, { phase: "uploading" });
-      uploadFile(item.file, visibility, (progress) => patch(item.key, { progress }))
-        .then((assetId) =>
-          patch(item.key, {
-            phase: "processing",
-            assetId,
-            saved: { name: nameWithoutExtension(item.file.name), description: "", tags: [], collectionIds: [], visibility },
-          }),
-        )
+      uploadFile(item.file, item.details, (progress) => patch(item.key, { progress }))
+        .then((assetId) => patch(item.key, { phase: "processing", assetId }))
         .catch((e: Error) => patch(item.key, { phase: "failed", error: e.message }));
     }
   }, [items]);
@@ -110,28 +100,30 @@ export function UploadDialog({ userName, collections }: Props) {
   }
 
   const valid = items.filter((i) => i.phase !== "rejected" && i.phase !== "failed");
+  const ready = valid.filter((i) => i.phase === "ready");
   const uploaded = valid.filter((i) => i.phase === "processing");
-  const busy = valid.length !== uploaded.length;
+  const busy = valid.length !== uploaded.length + ready.length;
   const rejected = items.length - valid.length;
   const selectedIndex = valid.findIndex((i) => i.key === selectedKey);
   const selected = valid[selectedIndex];
 
-  // บันทึกรายละเอียดที่แก้ แล้วปิด
-  async function done() {
-    setSaving(true);
-    setSaveError(undefined);
-    const failed: string[] = [];
-    for (const item of uploaded) {
-      try {
-        await saveDetails(item.assetId!, item.details, item.saved!);
-        patch(item.key, { saved: item.details });
-      } catch (e) {
-        failed.push(`${item.file.name}: ${(e as Error).message}`);
-      }
-    }
-    setSaving(false);
-    if (failed.length) return setSaveError(failed.join("\n"));
+  // ปิดแท็บ / รีเฟรชระหว่างส่งไฟล์ = อัปโหลดถูกยกเลิก เตือนก่อน
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // browser รุ่นเก่า
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
 
+  // ผู้ใช้ยืนยันแล้ว → เข้าคิวอัปโหลด
+  function startUpload() {
+    setItems((prev) => prev.map((i) => (i.phase === "ready" ? { ...i, phase: "queued" } : i)));
+  }
+
+  function done() {
     items.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl));
     setItems([]);
     setSelectedKey(undefined);
@@ -250,7 +242,7 @@ export function UploadDialog({ userName, collections }: Props) {
                 </span>
                 <p className="mt-4 text-lg font-bold">เพิ่มไฟล์เพื่อแก้รายละเอียด</p>
                 <p className="mt-1 max-w-sm text-ink-muted">
-                  ตั้งชื่อ คำอธิบาย Tag และ Collection ได้ระหว่างอัปโหลด หรือแก้ทีหลังในหน้า Asset
+                  ตั้งชื่อ คำอธิบาย Tag และ Collection ก่อนกดอัปโหลด หรือแก้ทีหลังในหน้า Asset
                 </p>
               </div>
             )}
@@ -261,20 +253,26 @@ export function UploadDialog({ userName, collections }: Props) {
           <p className="text-sm text-ink-muted">
             {valid.length ? `อัปโหลดแล้ว ${uploaded.length} จาก ${valid.length}` : "อัปโหลดได้ทีละไฟล์หรือหลายไฟล์"}
           </p>
-          {saveError && (
-            <p role="alert" className="w-full whitespace-pre-line text-sm text-danger sm:order-none sm:w-auto">
-              {saveError}
-            </p>
+          {ready.length > 0 ? (
+            <button
+              type="button"
+              onClick={startUpload}
+              className="flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white transition hover:bg-brand-hover"
+            >
+              <CloudUploadIcon className="size-5" />
+              อัปโหลด {ready.length} ไฟล์
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={done}
+              disabled={busy}
+              className="flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <CheckIcon className="size-5" />
+              {busy ? "กำลังอัปโหลด…" : "เสร็จสิ้น"}
+            </button>
           )}
-          <button
-            type="button"
-            onClick={done}
-            disabled={busy || saving}
-            className="flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <CheckIcon className="size-5" />
-            {saving ? "กำลังบันทึก…" : busy ? "รออัปโหลด…" : "เสร็จสิ้น"}
-          </button>
         </footer>
       </div>
     </dialog>

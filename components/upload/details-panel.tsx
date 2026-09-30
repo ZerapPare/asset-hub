@@ -51,7 +51,9 @@ export function DetailsPanel({ item, index, total, userName, collections, onChan
           {item.phase === "processing" ? (
             <StatusBadge status="PROCESSING" />
           ) : (
-            <span className="text-sm text-ink-muted">{item.phase === "queued" ? "รออัปโหลด" : "กำลังอัปโหลด…"}</span>
+            <span className="text-sm text-ink-muted">
+              {item.phase === "ready" ? "ยังไม่ได้อัปโหลด" : item.phase === "queued" ? "รออัปโหลด" : "กำลังอัปโหลด…"}
+            </span>
           )}
         </div>
       </div>
@@ -70,86 +72,89 @@ export function DetailsPanel({ item, index, total, userName, collections, onChan
         ))}
       </dl>
 
-      <div>
-        <label htmlFor="asset-name" className="mb-2 block font-medium">ชื่อ Asset</label>
-        <input
-          id="asset-name"
-          value={details.name}
-          onChange={(e) => set({ name: e.target.value })}
-          maxLength={200}
-          className={`${inputClass} h-12`}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="asset-desc" className="mb-2 block font-medium">คำอธิบาย (ไม่บังคับ)</label>
-        <textarea
-          id="asset-desc"
-          value={details.description}
-          onChange={(e) => set({ description: e.target.value })}
-          maxLength={2000}
-          rows={3}
-          placeholder="ไฟล์นี้เกี่ยวกับอะไร ช่วยให้ Semantic Search หาเจอง่ายขึ้น"
-          className={`${inputClass} py-3`}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="asset-tags" className="mb-2 block font-medium">Tag</label>
-        <TagInput id="asset-tags" value={details.tags} onChange={(tags) => set({ tags })} />
-        <p className="mt-2 text-sm text-ink-muted">กด Enter เพื่อเพิ่ม ชื่อใหม่จะสร้าง Tag ที่ทุกคนใช้ได้</p>
-      </div>
-
-      <fieldset>
-        <legend className="mb-2 font-medium">สิทธิ์การมองเห็น</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {VISIBILITY_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className={`cursor-pointer rounded-xl border p-3 transition has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/15 ${
-                details.visibility === opt.value ? "border-brand bg-brand-soft/60" : "border-line hover:border-ink-subtle"
-              }`}
-            >
-              <input
-                type="radio"
-                name="visibility"
-                value={opt.value}
-                checked={details.visibility === opt.value}
-                onChange={() => set({ visibility: opt.value, ...(opt.value === "PRIVATE" && { collectionIds: [] }) })}
-                className="sr-only"
-              />
-              <span className="block font-semibold">{opt.label}</span>
-              <span className="mt-0.5 block text-xs text-ink-muted">{opt.hint}</span>
-            </label>
-          ))}
+      {/* กดอัปโหลดแล้วแก้ไม่ได้ (รายละเอียดถูกส่งไปพร้อมไฟล์) แก้ต่อได้ในหน้า Asset */}
+      <fieldset disabled={item.phase !== "ready"} className="space-y-6 disabled:opacity-60">
+        <div>
+          <label htmlFor="asset-name" className="mb-2 block font-medium">ชื่อ Asset</label>
+          <input
+            id="asset-name"
+            value={details.name}
+            onChange={(e) => set({ name: e.target.value })}
+            maxLength={200}
+            className={`${inputClass} h-12`}
+          />
         </div>
-      </fieldset>
 
-      <fieldset disabled={isPrivate}>
-        <legend className="mb-2 font-medium">Collection</legend>
-        {isPrivate ? (
-          <p className="rounded-xl bg-canvas px-4 py-3 text-sm text-ink-muted">ไฟล์ส่วนตัวใส่ Collection ไม่ได้</p>
-        ) : collections.length === 0 ? (
-          <p className="rounded-xl bg-canvas px-4 py-3 text-sm text-ink-muted">ยังไม่มี Collection ที่คุณแก้ได้</p>
-        ) : (
-          <ul className="max-h-56 divide-y divide-line-soft overflow-y-auto rounded-xl border border-line">
-            {collections.map((c) => (
-              <li key={c.id}>
-                <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-canvas">
-                  <input
-                    type="checkbox"
-                    checked={details.collectionIds.includes(c.id)}
-                    onChange={() => toggleCollection(c.id)}
-                    className="size-4 accent-[var(--brand)]"
-                  />
-                  <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: c.color }} aria-hidden="true" />
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-sm text-ink-muted tabular-nums">{c.assetCount}</span>
-                </label>
-              </li>
+        <div>
+          <label htmlFor="asset-desc" className="mb-2 block font-medium">คำอธิบาย (ไม่บังคับ)</label>
+          <textarea
+            id="asset-desc"
+            value={details.description}
+            onChange={(e) => set({ description: e.target.value })}
+            maxLength={2000}
+            rows={3}
+            placeholder="ไฟล์นี้เกี่ยวกับอะไร ช่วยให้ Semantic Search หาเจอง่ายขึ้น"
+            className={`${inputClass} py-3`}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="asset-tags" className="mb-2 block font-medium">Tag</label>
+          <TagInput id="asset-tags" value={details.tags} onChange={(tags) => set({ tags })} />
+          <p className="mt-2 text-sm text-ink-muted">กด Enter เพื่อเพิ่ม ชื่อใหม่จะสร้าง Tag ที่ทุกคนใช้ได้</p>
+        </div>
+
+        <fieldset>
+          <legend className="mb-2 font-medium">สิทธิ์การมองเห็น</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className={`cursor-pointer rounded-xl border p-3 transition has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/15 ${
+                  details.visibility === opt.value ? "border-brand bg-brand-soft/60" : "border-line hover:border-ink-subtle"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visibility"
+                  value={opt.value}
+                  checked={details.visibility === opt.value}
+                  onChange={() => set({ visibility: opt.value, ...(opt.value === "PRIVATE" && { collectionIds: [] }) })}
+                  className="sr-only"
+                />
+                <span className="block font-semibold">{opt.label}</span>
+                <span className="mt-0.5 block text-xs text-ink-muted">{opt.hint}</span>
+              </label>
             ))}
-          </ul>
-        )}
+          </div>
+        </fieldset>
+
+        <fieldset disabled={isPrivate}>
+          <legend className="mb-2 font-medium">Collection</legend>
+          {isPrivate ? (
+            <p className="rounded-xl bg-canvas px-4 py-3 text-sm text-ink-muted">ไฟล์ส่วนตัวใส่ Collection ไม่ได้</p>
+          ) : collections.length === 0 ? (
+            <p className="rounded-xl bg-canvas px-4 py-3 text-sm text-ink-muted">ยังไม่มี Collection ที่คุณแก้ได้</p>
+          ) : (
+            <ul className="max-h-56 divide-y divide-line-soft overflow-y-auto rounded-xl border border-line">
+              {collections.map((c) => (
+                <li key={c.id}>
+                  <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-canvas">
+                    <input
+                      type="checkbox"
+                      checked={details.collectionIds.includes(c.id)}
+                      onChange={() => toggleCollection(c.id)}
+                      className="size-4 accent-[var(--brand)]"
+                    />
+                    <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: c.color }} aria-hidden="true" />
+                    <span className="flex-1 truncate">{c.name}</span>
+                    <span className="text-sm text-ink-muted tabular-nums">{c.assetCount}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </fieldset>
       </fieldset>
     </div>
   );

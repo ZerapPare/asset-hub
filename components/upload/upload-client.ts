@@ -1,4 +1,4 @@
-import type { UploadVisibility } from "@/lib/upload/rules";
+import { nameWithoutExtension, type UploadVisibility } from "@/lib/upload/rules";
 
 export type Details = {
   name: string;
@@ -35,20 +35,24 @@ function postToStorage(url: string, fields: Record<string, string>, file: File, 
   });
 }
 
-// ขอ URL → อัปโหลด → ยืนยัน
-export async function uploadFile(file: File, visibility: UploadVisibility, onProgress: (p: number) => void) {
+// ขอ URL → อัปโหลด → บันทึกรายละเอียด → ยืนยัน
+// asset ยังเป็น UPLOADING (ไม่มีใครเห็น) จนกว่าจะ complete จึงบันทึกรายละเอียดก่อน
+export async function uploadFile(file: File, details: Details, onProgress: (p: number) => void) {
+  const { visibility } = details;
   const { assetId, url, fields } = await api<{ assetId: string; url: string; fields: Record<string, string> }>(
     "/api/assets/upload-url",
     "POST",
     { name: file.name, mimeType: file.type, size: file.size, visibility },
   );
   await postToStorage(url, fields, file, onProgress);
+  const created: Details = { name: nameWithoutExtension(file.name), description: "", tags: [], collectionIds: [], visibility };
+  await saveDetails(assetId, details, created);
   await api(`/api/assets/${assetId}/complete`, "POST");
   return assetId;
 }
 
 // ส่งเฉพาะช่องที่ต่างจากที่บันทึกไว้
-export async function saveDetails(assetId: string, next: Details, saved: Details) {
+async function saveDetails(assetId: string, next: Details, saved: Details) {
   const body: Record<string, unknown> = {};
   if (next.name !== saved.name) body.displayName = next.name;
   if (next.description !== saved.description) body.description = next.description;
