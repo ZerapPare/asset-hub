@@ -1,8 +1,10 @@
 import { visibleAssetsWhere } from "@/lib/access";
+import { assetFilters, type AssetFilterOptions } from "@/lib/assets/search";
 import { countVisibleAssets, getAssetTotals } from "@/lib/assets/stats";
 import { STORAGE_QUOTA } from "@/lib/config";
 import { sql } from "@/lib/db";
 import type { Asset, FileType, ProcessingStatus, Summary } from "@/lib/types";
+import { isUuid } from "@/lib/validate";
 
 // TODO: Collection และ Tag ยังไม่ได้ดึงจาก DB
 export async function getSummary(userId: string): Promise<Summary> {
@@ -23,7 +25,12 @@ export async function getSummary(userId: string): Promise<Summary> {
   };
 }
 
-const LIST_LIMIT = 100;
+export const LIST_LIMIT = 100;
+
+export const LIST_SORTS = ["newest", "oldest", "name"] as const;
+export type ListSort = (typeof LIST_SORTS)[number];
+
+export type ListAssetsOptions = AssetFilterOptions & { sort?: ListSort };
 
 type AssetListRow = {
   asset_id: string;
@@ -37,9 +44,24 @@ type AssetListRow = {
   owner_name: string;
 };
 
-// Asset ที่ user มีสิทธิ์เห็น ไม่รวมที่ยังอัปโหลดไม่เสร็จ
-// TODO: filter/sort + cursor (Phase 5)
-export async function listAssets(userId: string, filters: { type?: FileType }): Promise<Asset[]> {
+// การเรียงมาจาก allowlist เท่านั้น
+function listOrderBy(sort: ListSort = "newest") {
+  switch (sort) {
+    case "oldest":
+      return sql`a.created_at ASC, a.asset_id`;
+    case "name":
+      return sql`LOWER(a.display_name) ASC, a.created_at DESC, a.asset_id`;
+    default:
+      return sql`a.created_at DESC, a.asset_id`;
+  }
+}
+
+// Asset ที่ user มีสิทธิ์เห็น ไม่รวมที่ยังอัปโหลดไม่เสร็จ (ตัวกรองชุดเดียวกับ Keyword Search)
+// TODO: cursor (Phase 5)
+export async function listAssets(userId: string, options: ListAssetsOptions = {}): Promise<Asset[]> {
+  // collection id ผิดรูปแบบ = ไม่มี collection นี้
+  if (options.collectionId && !isUuid(options.collectionId)) return [];
+
   const rows = await sql<AssetListRow[]>`
     SELECT
       a.asset_id, a.display_name, a.file_type, a.file_extension,
@@ -49,8 +71,8 @@ export async function listAssets(userId: string, filters: { type?: FileType }): 
     JOIN users u ON u.user_id = a.owner_id
     WHERE ${visibleAssetsWhere(userId)}
       AND a.processing_status <> 'UPLOADING'
-      ${filters.type ? sql`AND a.file_type = ${filters.type}` : sql``}
-    ORDER BY a.created_at DESC
+      ${assetFilters(userId, options)}
+    ORDER BY ${listOrderBy(options.sort)}
     LIMIT ${LIST_LIMIT}
   `;
   return rows.map((row) => ({

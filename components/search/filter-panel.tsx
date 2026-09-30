@@ -68,7 +68,7 @@ export function FilterPanel({ values, keep, collectionOptions, tagOptions, activ
           <CleanForm
             ref={panelRef}
             id="search-filter-panel"
-            action="/search"
+            action="/assets"
             aria-label="ตัวกรอง"
             className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-14 sm:w-96 sm:rounded-2xl sm:border sm:border-line sm:shadow-xl"
           >

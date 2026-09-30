@@ -28,15 +28,17 @@ export type SearchSort = (typeof SEARCH_SORTS)[number];
 export const UPLOADED_RANGES = ["7d", "30d", "year"] as const;
 export type UploadedRange = (typeof UPLOADED_RANGES)[number];
 
-export type KeywordSearchOptions = {
+/** ตัวกรองที่ใช้ร่วมกันระหว่างหน้า Asset (ไม่มีคำค้น) กับ Keyword Search */
+export type AssetFilterOptions = {
   type?: FileType;
   uploaded?: UploadedRange;
   /** เฉพาะ Asset ของผู้ใช้เอง */
   mine?: boolean;
   collectionId?: string;
   tag?: string;
-  sort?: SearchSort;
 };
+
+export type KeywordSearchOptions = AssetFilterOptions & { sort?: SearchSort };
 
 export class SearchTimeoutError extends Error {
   constructor() {
@@ -117,7 +119,7 @@ export async function searchAssets(
             ON u.user_id = a.owner_id
           WHERE ${visibleAssetsWhere(userId)}
             AND a.processing_status <> 'UPLOADING'
-            ${filters(userId, options)}
+            ${assetFilters(userId, options)}
           ORDER BY ${orderBy(options.sort, query)}
           LIMIT ${SEARCH_LIMIT}
         )
@@ -256,7 +258,9 @@ function uploadedSince(range: UploadedRange) {
   }
 }
 
-function filters(userId: string, o: KeywordSearchOptions) {
+// เงื่อนไขตัวกรองต่อท้าย WHERE (ตาราง assets ต้องใช้ alias a)
+// collectionId ต้องเป็น UUID — ตรวจก่อนเรียก
+export function assetFilters(userId: string, o: AssetFilterOptions) {
   return sql`
     ${o.type ? sql`AND a.file_type = ${o.type}` : sql``}
     ${o.uploaded ? sql`AND a.created_at >= ${uploadedSince(o.uploaded)}` : sql``}

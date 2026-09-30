@@ -13,14 +13,8 @@ type Props = {
 
 // เปลี่ยนค่าแล้วส่งฟอร์มทันที (ตัวกรองเก็บใน URL)
 export function FilterSelect({ name, label, icon, value, options }: Props) {
-  const active = value !== "";
-
   return (
-    <label
-      className={`flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm transition focus-within:ring-4 focus-within:ring-brand/15 ${
-        active ? "border-brand/40 bg-brand-soft text-brand-ink" : "border-line bg-surface text-ink-muted hover:text-ink"
-      }`}
-    >
+    <label className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-line bg-surface px-4 text-sm text-ink-muted transition hover:text-ink focus-within:ring-4 focus-within:ring-brand/15">
       <span className="size-4 shrink-0 [&>svg]:size-4">{icon}</span>
       {/* จอเล็กเหลือแค่ไอคอน + ค่า ประหยัดที่ */}
       <span className="sr-only sm:not-sr-only">{label}</span>

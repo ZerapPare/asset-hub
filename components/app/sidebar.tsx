@@ -11,7 +11,6 @@ import {
   LayersIcon,
   LogoutIcon,
   PlusIcon,
-  SearchIcon,
   SettingsIcon,
   TagIcon,
 } from "@/components/icons";
@@ -32,7 +31,6 @@ export function Sidebar({ user, summary }: { user: CurrentUser; summary: Summary
     { href: "/assets?type=document", label: "เอกสาร", icon: <FileIcon />, count: summary.documents },
     { href: "/collections", label: "Collection", icon: <FolderIcon />, count: collections.length },
     { href: "/tags", label: "Tag", icon: <TagIcon />, count: summary.tags },
-    { href: "/search", label: "ค้นหา", icon: <SearchIcon /> },
   ];
   const usedPct = Math.round((storage.used / storage.quota) * 100);
 
