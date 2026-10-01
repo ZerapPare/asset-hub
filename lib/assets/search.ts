@@ -6,7 +6,6 @@ import { isUuid } from "@/lib/validate";
 export const SEARCH_LIMIT = 50;
 export const MIN_TRIGRAM_QUERY_LENGTH = 3;
 const MAX_QUERY_LENGTH = 200;
-// กันคำค้นที่ตรงข้อมูลมากจน query ค้าง (Lambda มี connection เดียว)
 const STATEMENT_TIMEOUT = "3s";
 const SNIPPET_RADIUS = 80;
 const TAG_OPTION_LIMIT = 200;
@@ -16,23 +15,21 @@ export type MatchSource = "name" | "tag" | "collection" | "description" | "conte
 export type SearchResult = {
   asset: Asset;
   tags: string[];
-  /** ส่วนที่คำค้นไปตรง */
   matchedIn: MatchSource[];
-  /** ข้อความช่วงที่เจอในเนื้อหาเอกสาร */
   snippet?: string;
 };
 
-export const SEARCH_SORTS = ["relevance", "newest", "oldest", "name"] as const;
+export const SEARCH_SORTS = ["relevance", "newest", "oldest", "name-th", "name"] as const;
 export type SearchSort = (typeof SEARCH_SORTS)[number];
 
 export const UPLOADED_RANGES = ["7d", "30d", "year"] as const;
 export type UploadedRange = (typeof UPLOADED_RANGES)[number];
 
-/** ตัวกรองที่ใช้ร่วมกันระหว่างหน้า Asset (ไม่มีคำค้น) กับ Keyword Search */
 export type AssetFilterOptions = {
   type?: FileType;
   uploaded?: UploadedRange;
-  /** เฉพาะ Asset ของผู้ใช้เอง */
+  uploadedFrom?: string;
+  uploadedTo?: string;
   mine?: boolean;
   collectionId?: string;
   tag?: string;
@@ -169,15 +166,12 @@ export async function searchAssets(
 }
 
 // แต่ละแหล่งหา asset_id แยกกันด้วย UNION ALL เพื่อให้แต่ละส่วนใช้ index ของตัวเองได้
-// (ถ้ารวมเป็น OR ใน WHERE เดียว Postgres ต้อง Seq Scan ทั้งตาราง assets)
 // rank: 0 = ชื่อตรงทั้งคำ (คิดตอนเรียง), 1 = ชื่อ, 2 = คำอธิบาย, 3 = Tag / Collection / เนื้อหา
 
 // คำค้นสั้นกว่า 3 ตัว trigram ใช้ไม่ได้: ชื่อขึ้นต้นด้วยคำค้น หรือ Tag ตรงทั้งคำ
 function shortQueryHits(userId: string, query: string) {
   const prefixPattern = `${escapeLike(query)}%`;
 
-  // deleted_at IS NULL ต้องอยู่ในเงื่อนไขนี้ด้วย ถึงจะใช้ partial index
-  // idx_assets_display_name_lower_prefix ได้
   return sql`
     SELECT a.asset_id, 1 AS rank, 'name'::text AS source
     FROM assets a
@@ -264,6 +258,8 @@ export function assetFilters(userId: string, o: AssetFilterOptions) {
   return sql`
     ${o.type ? sql`AND a.file_type = ${o.type}` : sql``}
     ${o.uploaded ? sql`AND a.created_at >= ${uploadedSince(o.uploaded)}` : sql``}
+    ${o.uploadedFrom ? sql`AND a.created_at >= (${o.uploadedFrom}::date::timestamp AT TIME ZONE 'Asia/Bangkok')` : sql``}
+    ${o.uploadedTo ? sql`AND a.created_at < ((${o.uploadedTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Bangkok')` : sql``}
     ${o.mine ? sql`AND a.owner_id = ${userId}` : sql``}
     ${
       o.collectionId
@@ -301,8 +297,10 @@ function orderBy(sort: SearchSort = "relevance", query: string) {
       return sql`a.created_at DESC, a.asset_id`;
     case "oldest":
       return sql`a.created_at ASC, a.asset_id`;
+    case "name-th":
+      return sql`LOWER(a.display_name) COLLATE "th-x-icu" ASC, a.created_at DESC, a.asset_id`;
     case "name":
-      return sql`LOWER(a.display_name) ASC, a.created_at DESC, a.asset_id`;
+      return sql`LOWER(a.display_name) COLLATE "en-x-icu" ASC, a.created_at DESC, a.asset_id`;
     default:
       // 1) แหล่งที่ตรงดีที่สุด (rank)  2) ตรงหลายแหล่งมาก่อน
       // 3) ชื่อใกล้เคียงคำค้นมากกว่ามาก่อน (pg_trgm similarity)  4) ใหม่กว่ามาก่อน

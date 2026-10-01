@@ -31,7 +31,7 @@ export async function getSummary(userId: string): Promise<Summary> {
 
 export const LIST_LIMIT = 100;
 
-export const LIST_SORTS = ["newest", "oldest", "name"] as const;
+export const LIST_SORTS = ["newest", "oldest", "name-th", "name"] as const;
 export type ListSort = (typeof LIST_SORTS)[number];
 
 export type ListAssetsOptions = AssetFilterOptions & { sort?: ListSort };
@@ -53,8 +53,10 @@ function listOrderBy(sort: ListSort = "newest") {
   switch (sort) {
     case "oldest":
       return sql`a.created_at ASC, a.asset_id`;
+    case "name-th":
+      return sql`LOWER(a.display_name) COLLATE "th-x-icu" ASC, a.created_at DESC, a.asset_id`;
     case "name":
-      return sql`LOWER(a.display_name) ASC, a.created_at DESC, a.asset_id`;
+      return sql`LOWER(a.display_name) COLLATE "en-x-icu" ASC, a.created_at DESC, a.asset_id`;
     default:
       return sql`a.created_at DESC, a.asset_id`;
   }

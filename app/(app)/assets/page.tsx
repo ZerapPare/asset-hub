@@ -34,12 +34,12 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 export const metadata: Metadata = { title: "Asset ทั้งหมด — AssetHub" };
 
 // หน้าเดียวทั้งดูไฟล์และค้นหา: ไม่มี q = รายการไฟล์ / มี q = ผลค้นหา (ช่องค้นหาอยู่บน topbar)
-const PARAM_KEYS = ["q", "mode", "type", "uploaded", "owner", "collection", "tag", "sort", "view"] as const;
+const PARAM_KEYS = ["q", "mode", "type", "uploaded", "from", "to", "owner", "collection", "tag", "sort", "view"] as const;
 type Params = Record<(typeof PARAM_KEYS)[number], string>;
 type Href = (overrides: Partial<Params>) => string;
 
 const FILTER_KEYS = ["uploaded", "owner", "collection", "tag"] as const satisfies readonly (keyof SearchFilters)[];
-const noFilters = { uploaded: "", owner: "", collection: "", tag: "" };
+const noFilters = { uploaded: "", from: "", to: "", owner: "", collection: "", tag: "" };
 
 const typeTabs: FilterOption[] = [
   { value: "", label: "ทั้งหมด" },
@@ -55,12 +55,14 @@ const sortOptions: Record<"browse" | SearchMode, FilterOption[]> = {
   browse: [
     { value: "", label: "ใหม่สุด" },
     { value: "oldest", label: "เก่าสุด" },
+    { value: "name-th", label: "ชื่อ ก–ฮ" },
     { value: "name", label: "ชื่อ A–Z" },
   ],
   keyword: [
     { value: "", label: "ตรงที่สุด" },
     { value: "newest", label: "ใหม่สุด" },
     { value: "oldest", label: "เก่าสุด" },
+    { value: "name-th", label: "ชื่อ ก–ฮ" },
     { value: "name", label: "ชื่อ A–Z" },
   ],
   semantic: [
@@ -72,7 +74,7 @@ const sortOptions: Record<"browse" | SearchMode, FilterOption[]> = {
 // ค่าใน URL ที่ไม่อยู่ในรายการ ถือว่าไม่ได้เลือก (ไม่ขึ้น chip และไม่ส่งไป query)
 const allowed: Partial<Record<keyof Params, readonly string[]>> = {
   type: ["document", "image"],
-  uploaded: UPLOADED_RANGES,
+  uploaded: [...UPLOADED_RANGES, "custom"],
   owner: ["me"],
   view: ["list"],
   mode: ["semantic"],
@@ -87,6 +89,18 @@ export default async function AssetsPage({ searchParams }: PageProps<"/assets">)
       return [key, list && !list.includes(value) ? "" : value];
     }),
   ) as Params;
+  if (params.uploaded === "custom") {
+    params.from = normalizeDateParam(params.from);
+    params.to = normalizeDateParam(params.to);
+    if (!params.from || !params.to || params.from > params.to) {
+      params.uploaded = "";
+      params.from = "";
+      params.to = "";
+    }
+  } else {
+    params.from = "";
+    params.to = "";
+  }
   const kind = params.q ? (params.mode === "semantic" ? "semantic" : "keyword") : "browse";
   if (kind === "browse") params.mode = "";
   if (!sortOptions[kind].some((o) => o.value === params.sort)) params.sort = "";
@@ -103,7 +117,14 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
   const { q } = params;
   // ค่าเริ่มต้นเป็น Grid
   const view: SearchView = params.view === "list" ? "list" : "grid";
-  const filters: SearchFilters = { uploaded: params.uploaded, owner: params.owner, collection: params.collection, tag: params.tag };
+  const filters: SearchFilters = {
+    uploaded: params.uploaded,
+    uploadedFrom: params.from,
+    uploadedTo: params.to,
+    owner: params.owner,
+    collection: params.collection,
+    tag: params.tag,
+  };
 
   // ลิงก์จากค่าปัจจุบัน + ค่าที่เปลี่ยน (ไม่ใส่ค่าว่างและค่าเริ่มต้นใน URL)
   const href: Href = (overrides) => {
@@ -119,7 +140,11 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
   const user = (await getCurrentUser())!;
   const filterOptions: AssetFilterOptions = {
     type: params.type === "image" ? "IMAGE" : params.type === "document" ? "DOCUMENT" : undefined,
-    uploaded: (params.uploaded || undefined) as (typeof UPLOADED_RANGES)[number] | undefined,
+    uploaded: UPLOADED_RANGES.includes(params.uploaded as (typeof UPLOADED_RANGES)[number])
+      ? (params.uploaded as (typeof UPLOADED_RANGES)[number])
+      : undefined,
+    uploadedFrom: params.uploaded === "custom" ? params.from || undefined : undefined,
+    uploadedTo: params.uploaded === "custom" ? params.to || undefined : undefined,
     mine: params.owner === "me",
     collectionId: params.collection || undefined,
     tag: params.tag || undefined,
@@ -154,7 +179,10 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
   const isFiltered = activeFilters.length > 0 || params.type !== "";
   const clearFiltersHref = href({ ...noFilters, type: "" });
   const chipLabel: Record<(typeof FILTER_KEYS)[number], string> = {
-    uploaded: `อัปโหลด: ${labelOf(UPLOADED_OPTIONS, filters.uploaded)}`,
+    uploaded:
+      filters.uploaded === "custom"
+        ? `อัปโหลด: ${formatDateRange(filters.uploadedFrom, filters.uploadedTo)}`
+        : `อัปโหลด: ${labelOf(UPLOADED_OPTIONS, filters.uploaded)}`,
     owner: `เจ้าของ: ${labelOf(OWNER_OPTIONS, filters.owner)}`,
     collection: `Collection: ${labelOf(collectionOptions, filters.collection)}`,
     tag: `Tag: ${labelOf(tagOptions, filters.tag)}`,
@@ -218,6 +246,7 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
 
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2 pb-2">
           <FilterPanel
+            key={JSON.stringify(filters)}
             values={filters}
             keep={{ q, mode: kind === "semantic" ? kind : "", type: params.type, sort: params.sort, view: params.view }}
             collectionOptions={collectionOptions}
@@ -226,10 +255,17 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
             clearHref={href(noFilters)}
           />
           <CleanForm action="/assets">
-            {(["q", "mode", "type", ...FILTER_KEYS, "view"] as const).map(
+            {(["q", "mode", "type", "from", "to", ...FILTER_KEYS, "view"] as const).map(
               (key) => params[key] && <input key={key} type="hidden" name={key} value={params[key]} />,
             )}
-            <FilterSelect name="sort" label="เรียงตาม" icon={<SortIcon />} value={params.sort} options={sortOptions[kind]} />
+            <FilterSelect
+              key={`${kind}:${params.sort}`}
+              name="sort"
+              label="เรียงตาม"
+              icon={<SortIcon />}
+              value={params.sort}
+              options={sortOptions[kind]}
+            />
           </CleanForm>
           <ViewToggle view={view} href={href} />
         </div>
@@ -240,7 +276,7 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
           {activeFilters.map((key) => (
             <li key={key}>
               <Link
-                href={href({ [key]: "" })}
+                href={key === "uploaded" ? href({ uploaded: "", from: "", to: "" }) : href({ [key]: "" })}
                 aria-label={`เอาตัวกรอง ${chipLabel[key]} ออก`}
                 className="flex items-center gap-1.5 rounded-full bg-brand-soft py-1.5 pl-3 pr-2 text-sm font-medium text-brand-ink hover:bg-brand/15"
               >
@@ -321,6 +357,17 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
 
 function labelOf(options: FilterOption[], value: string) {
   return options.find((o) => o.value === value)?.label ?? value;
+}
+
+function normalizeDateParam(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : "";
+}
+
+function formatDateRange(from: string, to: string) {
+  const formatter = new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return `${formatter.format(new Date(`${from}T00:00:00Z`))} – ${formatter.format(new Date(`${to}T00:00:00Z`))}`;
 }
 
 function ModeSwitch({ mode, href, className = "" }: { mode: SearchMode; href: Href; className?: string }) {

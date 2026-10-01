@@ -73,7 +73,21 @@ export function mockSemanticSearch(q: string, type: string, filters: SearchFilte
   return MOCK_SEMANTIC_RESULTS.filter(
     ({ asset, tags }) =>
       (!type || asset.fileType === (type === "image" ? "IMAGE" : "DOCUMENT")) &&
+      matchesUploadedDate(asset.createdAt, filters) &&
       (filters.owner !== "me" || asset.owner.isMe) &&
       (!filters.tag || tags.includes(filters.tag)),
   );
+}
+
+function matchesUploadedDate(createdAt: string, filters: SearchFilters) {
+  if (!filters.uploaded) return true;
+  const date = createdAt.slice(0, 10);
+  if (filters.uploaded === "custom") {
+    return (!filters.uploadedFrom || date >= filters.uploadedFrom) && (!filters.uploadedTo || date <= filters.uploadedTo);
+  }
+  const created = new Date(createdAt);
+  const now = new Date();
+  if (filters.uploaded === "year") return created.getFullYear() === now.getFullYear();
+  const days = filters.uploaded === "7d" ? 7 : 30;
+  return created.getTime() >= now.getTime() - days * 24 * 60 * 60 * 1000;
 }

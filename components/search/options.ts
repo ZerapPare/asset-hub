@@ -8,6 +8,7 @@ export const UPLOADED_OPTIONS: FilterOption[] = [
   { value: "7d", label: "7 วันล่าสุด" },
   { value: "30d", label: "30 วันล่าสุด" },
   { value: "year", label: "ปีนี้" },
+  { value: "custom", label: "กำหนดเอง" },
 ];
 
 export const OWNER_OPTIONS: FilterOption[] = [

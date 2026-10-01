@@ -12,7 +12,7 @@ const modes: { value: Mode; label: string; Icon: typeof SearchIcon }[] = [
 ];
 
 // ตัวกรองของหน้า Asset ที่คงไว้ตอนค้นใหม่ (การเรียงไม่คง เพราะค่าเริ่มต้นต่างกันระหว่างดูไฟล์กับค้นหา)
-const KEEP_PARAMS = ["type", "uploaded", "owner", "collection", "tag", "view"] as const;
+const KEEP_PARAMS = ["type", "uploaded", "from", "to", "owner", "collection", "tag", "view"] as const;
 
 let focusAfterClear = false;
 

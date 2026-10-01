@@ -8,6 +8,8 @@ export type FilterOption = { value: string; label: string };
 /** ค่าตัวกรองใน panel (เก็บใน URL) */
 export type SearchFilters = {
   uploaded: string;
+  uploadedFrom: string;
+  uploadedTo: string;
   owner: string;
   collection: string;
   tag: string;
