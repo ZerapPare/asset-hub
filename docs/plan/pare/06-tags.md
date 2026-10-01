@@ -25,4 +25,5 @@ PATCH /api/assets/:id   { tags: string[] }   → แทนที่ Tag ทั�
 - [x] migration Tag กลาง (`0004_default_tags.sql`)
 - [x] เลือก Tag จากรายการ (`components/upload/tag-picker.tsx`) ในหน้าต่าง Upload และหน้ารายละเอียด
 - [x] API ปฏิเสธ Tag ที่ไม่มีในระบบ
-- [ ] หน้า Tag ดึงจาก DB จริง (จำนวน Asset ต่อ Tag)
+- [x] หน้า Tag ดึงจาก DB จริง — จำนวนไฟล์ที่ผู้ใช้เห็นได้ แยกเอกสาร/รูปภาพ (`listTags()` ใน `lib/api/tags.ts`)
+- [x] ตัวเลข Tag ใน sidebar = จำนวน Tag กลาง

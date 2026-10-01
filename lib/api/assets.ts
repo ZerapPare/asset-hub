@@ -6,16 +6,20 @@ import { sql } from "@/lib/db";
 import type { Asset, FileType, ProcessingStatus, Summary } from "@/lib/types";
 import { isUuid } from "@/lib/validate";
 
-// TODO: Collection และ Tag ยังไม่ได้ดึงจาก DB
+// TODO: Collection ยังไม่ได้ดึงจาก DB
 export async function getSummary(userId: string): Promise<Summary> {
   // จำนวนไฟล์ = ที่มองเห็นได้ (ตรงกับหน้า Library) / พื้นที่จัดเก็บ = เฉพาะไฟล์ของตัวเอง
-  const [visible, { storageUsed, byType }] = await Promise.all([countVisibleAssets(userId), getAssetTotals(userId)]);
+  const [visible, { storageUsed, byType }, [{ tags }]] = await Promise.all([
+    countVisibleAssets(userId),
+    getAssetTotals(userId),
+    sql<{ tags: number }[]>`SELECT COUNT(*)::int AS tags FROM tags`,
+  ]);
   return {
     totalAssets: visible.total,
     documents: visible.documents,
     images: visible.images,
     collections: [],
-    tags: 0,
+    tags,
     storage: {
       used: storageUsed,
       documents: byType.DOCUMENT.bytes,

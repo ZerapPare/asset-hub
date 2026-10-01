@@ -30,7 +30,6 @@ export type TagSummary = {
   name: string;
   documents: number;
   images: number;
-  createdBy: Person;
   lastUsedAt: string | null;
 };
 
