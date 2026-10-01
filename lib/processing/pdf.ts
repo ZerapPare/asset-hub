@@ -1,15 +1,38 @@
-import { extractText as extractPdfPages } from "unpdf";
+import { extractText as extractPdfPages, getDocumentProxy, renderPageAsImage } from "unpdf";
+import { THUMBNAIL_MAX_HEIGHT, THUMBNAIL_WIDTH } from "./thumbnail";
 
 export const CHUNK_SIZE = 1000;
 export const CHUNK_OVERLAP = 150;
 
 const BREAKS = ["\n\n", "\n", ". ", "? ", "! ", " "];
 
-/** ดึงข้อความทุกหน้า; PDF ภาพสแกนจะได้ค่าว่าง */
-export async function extractText(data: Uint8Array): Promise<string> {
+export type PdfDocument = Awaited<ReturnType<typeof getDocumentProxy>>;
+
+/** เปิด PDF ครั้งเดียว ใช้ร่วมกันทั้งดึงข้อความและ render หน้าแรก */
+export function openPdf(data: Uint8Array): Promise<PdfDocument> {
   // pdf.js อาจ detach buffer จึงส่งสำเนา
-  const { text } = await extractPdfPages(new Uint8Array(data), { mergePages: false });
+  return getDocumentProxy(new Uint8Array(data));
+}
+
+/** คืนหน่วยความจำของ pdf.js ทันทีหลังใช้เสร็จ (สำคัญบน Lambda) */
+export function closePdf(pdf: PdfDocument) {
+  return pdf.loadingTask.destroy();
+}
+
+/** ดึงข้อความทุกหน้า; PDF ภาพสแกนจะได้ค่าว่าง */
+export async function extractText(pdf: PdfDocument): Promise<string> {
+  const { text } = await extractPdfPages(pdf, { mergePages: false });
   return text.map(normalize).filter(Boolean).join("\n\n");
+}
+
+/** หน้าแรกเป็น PNG ขนาดพอดี thumbnail — render เล็กตั้งแต่ต้น ไม่ render ใหญ่แล้วย่อ */
+export async function renderFirstPage(pdf: PdfDocument): Promise<Uint8Array> {
+  const page = await pdf.getPage(1);
+  const { width, height } = page.getViewport({ scale: 1 });
+  // พอดีกรอบ thumbnail ทั้งกว้างและสูง (หน้าแนวนอน / แบบแปลนกว้างมากก็ไม่เกิน)
+  const scale = Math.min(THUMBNAIL_WIDTH / width, THUMBNAIL_MAX_HEIGHT / height);
+  const png = await renderPageAsImage(pdf, 1, { scale, canvasImport: () => import("@napi-rs/canvas") });
+  return new Uint8Array(png);
 }
 
 // แปลงสระ/วรรณยุกต์ไทย PUA จาก PDF เก่าเป็น Unicode มาตรฐาน
