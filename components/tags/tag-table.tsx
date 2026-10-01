@@ -50,7 +50,7 @@ export function TagTable({ tags, meName }: { tags: TagSummary[]; meName: string 
       </div>
 
       {tags.length === 0 ? (
-        <EmptyState>ยังไม่มี Tag — Tag จะถูกสร้างเมื่อเพิ่มให้ Asset</EmptyState>
+        <EmptyState>ยังไม่มี Tag ในระบบ</EmptyState>
       ) : shown.length === 0 ? (
         <EmptyState>ไม่พบ Tag ที่ตรงกับ “{query.trim()}”</EmptyState>
       ) : (

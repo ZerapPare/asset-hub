@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { getAssetDetail, getAssetNeighbors } from "@/lib/assets/detail";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listEditableCollections } from "@/lib/collections/editable";
+import { listTagNames } from "@/lib/tags/list";
 import { formatBytes } from "@/lib/format";
 import { VISIBILITY_OPTIONS } from "@/lib/upload/rules";
 
@@ -30,9 +31,10 @@ export default async function AssetDetailPage({ params }: PageProps<"/assets/[id
   const asset = await getAssetDetail(user.user_id, id);
   if (!asset) notFound();
 
-  const [neighbors, editable] = await Promise.all([
+  const [neighbors, editable, tagOptions] = await Promise.all([
     getAssetNeighbors(user.user_id, asset.id),
     asset.isOwner ? listEditableCollections(user.user_id) : Promise.resolve([]),
+    asset.isOwner ? listTagNames() : Promise.resolve([]),
   ]);
   const visibility = VISIBILITY_OPTIONS.find((v) => v.value === asset.visibility);
 
@@ -91,7 +93,7 @@ export default async function AssetDetailPage({ params }: PageProps<"/assets/[id
           </Section>
 
           <Section title="Tag">
-            <TagsEditor key={asset.tags.join()} assetId={asset.id} tags={asset.tags} editable={asset.isOwner} />
+            <TagsEditor key={asset.tags.join()} assetId={asset.id} tags={asset.tags} options={tagOptions} editable={asset.isOwner} />
           </Section>
 
           <Section title="Collection">

@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import type { EditableCollection } from "@/lib/collections/editable";
 import { formatBytes } from "@/lib/format";
 import { VISIBILITY_OPTIONS } from "@/lib/upload/rules";
-import { TagInput } from "./tag-input";
+import { TagPicker } from "./tag-picker";
 import type { Details } from "./upload-client";
 import type { UploadItem } from "./upload-item";
 
@@ -16,13 +16,14 @@ type Props = {
   total: number;
   userName: string;
   collections: EditableCollection[];
+  tagOptions: string[];
   onChange: (details: Details) => void;
 };
 
 const inputClass =
   "w-full rounded-xl border border-line bg-surface px-4 text-ink outline-none transition placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
-export function DetailsPanel({ item, index, total, userName, collections, onChange }: Props) {
+export function DetailsPanel({ item, index, total, userName, collections, tagOptions, onChange }: Props) {
   const { details } = item;
   const meta = fileTypeMeta[item.fileType!];
   const isPrivate = details.visibility === "PRIVATE";
@@ -100,8 +101,8 @@ export function DetailsPanel({ item, index, total, userName, collections, onChan
 
         <div>
           <label htmlFor="asset-tags" className="mb-2 block font-medium">Tag</label>
-          <TagInput id="asset-tags" value={details.tags} onChange={(tags) => set({ tags })} />
-          <p className="mt-2 text-sm text-ink-muted">กด Enter เพื่อเพิ่ม ชื่อใหม่จะสร้าง Tag ที่ทุกคนใช้ได้</p>
+          <TagPicker id="asset-tags" value={details.tags} options={tagOptions} onChange={(tags) => set({ tags })} />
+          <p className="mt-2 text-sm text-ink-muted">เลือกได้เฉพาะ Tag กลางของระบบ พิมพ์เพื่อค้นหา</p>
         </div>
 
         <fieldset>

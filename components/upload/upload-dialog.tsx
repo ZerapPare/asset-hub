@@ -11,7 +11,7 @@ import { UploadItemCard, type UploadItem } from "./upload-item";
 
 const CONCURRENCY = 3;
 
-type Props = { userName: string; collections: EditableCollection[] };
+type Props = { userName: string; collections: EditableCollection[]; tagOptions: string[] };
 
 function newItem(file: File): UploadItem {
   const checked = checkFile(file.name, file.type, file.size);
@@ -38,7 +38,7 @@ function newItem(file: File): UploadItem {
   };
 }
 
-export function UploadDialog({ userName, collections }: Props) {
+export function UploadDialog({ userName, collections, tagOptions }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -233,6 +233,7 @@ export function UploadDialog({ userName, collections }: Props) {
                 total={valid.length}
                 userName={userName}
                 collections={collections}
+                tagOptions={tagOptions}
                 onChange={(details) => patch(selected.key, { details })}
               />
             ) : (

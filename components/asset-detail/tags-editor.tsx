@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TagInput } from "@/components/upload/tag-input";
+import { TagPicker } from "@/components/upload/tag-picker";
 import { assetRequest } from "./api";
 
-type Props = { assetId: string; tags: string[]; editable: boolean };
+type Props = { assetId: string; tags: string[]; options: string[]; editable: boolean };
 
 // เจ้าของแก้ได้ (บันทึกทันที) คนอื่นเห็นเป็นลิงก์กรอง
-export function TagsEditor({ assetId, tags, editable }: Props) {
+export function TagsEditor({ assetId, tags, options, editable }: Props) {
   const router = useRouter();
   const [value, setValue] = useState(tags);
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
@@ -48,9 +48,9 @@ export function TagsEditor({ assetId, tags, editable }: Props) {
 
   return (
     <div>
-      <TagInput id="detail-tags" value={value} onChange={change} />
+      <TagPicker id="detail-tags" value={value} options={options} onChange={change} />
       <p className={`mt-2 text-sm ${state === "error" ? "text-danger" : "text-ink-muted"}`} aria-live="polite">
-        {state === "saving" ? "กำลังบันทึก…" : state === "error" ? error : "กด Enter เพื่อเพิ่ม ชื่อใหม่จะสร้าง Tag ที่ทุกคนใช้ได้"}
+        {state === "saving" ? "กำลังบันทึก…" : state === "error" ? error : "เลือกได้เฉพาะ Tag กลางของระบบ พิมพ์เพื่อค้นหา"}
       </p>
     </div>
   );

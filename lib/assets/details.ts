@@ -100,14 +100,15 @@ export async function updateAssetDetails(userId: string, assetId: string, input:
     }
 
     if (data.tags) {
-      if (data.tags.length > 0) {
-        await tx`INSERT INTO tags (name) SELECT unnest(${data.tags}::text[]) ON CONFLICT DO NOTHING`;
-      }
+      // ใช้ได้เฉพาะ Tag กลาง ไม่สร้างใหม่
       const tagIds = data.tags.length
         ? (await tx<{ tag_id: string }[]>`
             SELECT tag_id FROM tags WHERE LOWER(BTRIM(name)) = ANY(${data.tags}::text[])
           `).map((r) => r.tag_id)
         : [];
+      if (tagIds.length !== data.tags.length) {
+        throw new HttpError(400, "UNKNOWN_TAG", "เลือกได้เฉพาะ Tag ที่มีในระบบ");
+      }
       await tx`DELETE FROM asset_tags WHERE asset_id = ${assetId} AND NOT (tag_id = ANY(${tagIds}::uuid[]))`;
       if (tagIds.length) {
         await tx`

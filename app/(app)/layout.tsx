@@ -9,15 +9,17 @@ import { UploadDialog } from "@/components/upload/upload-dialog";
 import { getSummary } from "@/lib/api/assets";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { listEditableCollections } from "@/lib/collections/editable";
+import { listTagNames } from "@/lib/tags/list";
 import { SIDEBAR_COOKIE } from "@/lib/config";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const [summary, cookieStore, collections] = await Promise.all([
+  const [summary, cookieStore, collections, tagOptions] = await Promise.all([
     getSummary(user.user_id),
     cookies(),
     listEditableCollections(user.user_id),
+    listTagNames(),
   ]);
   // อ่านจาก cookie ฝั่ง server เพื่อไม่ให้ sidebar กระพริบเปิดแล้วปิดตอนโหลดหน้า
   const sidebarOpen = cookieStore.get(SIDEBAR_COOKIE)?.value !== "closed";
@@ -35,7 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </div>
       <Suspense>
-        <UploadDialog userName={user.display_name} collections={collections} />
+        <UploadDialog userName={user.display_name} collections={collections} tagOptions={tagOptions} />
       </Suspense>
     </SidebarProvider>
   );
