@@ -19,7 +19,8 @@
 | POST | `/api/assets/:id/complete` | owner |
 | GET | `/api/assets` | filter/sort ดู [08](08-filter-sort.md) |
 | GET | `/api/assets/:id` | canView |
-| GET | `/api/assets/:id/download` | canView |
+| GET | `/api/assets/:id/download` | canView — 302 ไป presigned URL + audit `DOWNLOAD` |
+| GET | `/api/assets/:id/preview` | canView — 302 ไป presigned URL (inline) |
 | PATCH | `/api/assets/:id` | owner — `{ displayName?, description?, visibility?, tags?, collectionIds? }` (tags/collectionIds = แทนที่ทั้งชุด) |
 | DELETE | `/api/assets/:id` | owner |
 

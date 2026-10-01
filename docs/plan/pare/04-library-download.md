@@ -76,10 +76,11 @@ GET /api/assets/:id/download
 - ใช้ `filename*=UTF-8''` เพื่อให้ชื่อไฟล์ภาษาไทยไม่เพี้ยน
 
 ## Checklist
-- [ ] `lib/access.ts` (`canView` + เงื่อนไข SQL) และแชร์ให้คนที่ 2
-- [ ] `GET /api/assets` (list + "ของฉัน")
-- [ ] `GET /api/assets/:id`
-- [ ] `GET /api/assets/:id/download` + audit log
-- [ ] หน้า Library (grid + thumbnail + ป้ายสถานะ)
-- [ ] หน้ารายละเอียด Asset
-- [ ] ทดสอบ: asset PRIVATE ของคนอื่นต้องได้ 404 และไม่โผล่ใน list
+- [x] `lib/access.ts` (`canView` + เงื่อนไข SQL) — คนที่ 2 เขียน
+- [x] รายการ Asset (`listAssets`) — หน้า Library เป็น Server Component ไม่ต้องมี API แยก
+- [x] รายละเอียด Asset (`lib/assets/detail.ts`)
+- [x] `GET /api/assets/:id/download` + audit log (ชื่อไฟล์ภาษาไทยผ่าน `filename*`)
+- [x] `GET /api/assets/:id/preview` (inline, ใช้ thumbnail ถ้ามี)
+- [x] หน้า Library (grid + ป้ายสถานะ) — thumbnail จริงรอ Processing
+- [x] หน้ารายละเอียด Asset (`/assets/[id]`)
+- [x] ทดสอบ: asset PRIVATE ของคนอื่นได้ 404 ทั้งหน้า, download และ preview

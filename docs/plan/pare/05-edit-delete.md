@@ -35,10 +35,10 @@ DELETE /api/assets/:id
 - เรื่องนี้ตอบข้อสังเกตใน FR ว่า "ลบเลยหรือเก็บไว้ก่อนแล้วตั้งเวลาลบ" → **เก็บไว้ก่อน แล้วตั้งเวลาลบ**
 
 ## Checklist
-- [ ] `PATCH /api/assets/:id`
-- [ ] `DELETE /api/assets/:id` (soft)
-- [ ] จัดการกรณีเปลี่ยนเป็น PRIVATE ขณะอยู่ใน collection
-- [ ] audit log `UPDATE` / `DELETE`
-- [ ] UI: ฟอร์มแก้ไข และกล่องยืนยันการลบ
+- [x] `PATCH /api/assets/:id`
+- [x] `DELETE /api/assets/:id` (soft)
+- [x] จัดการกรณีเปลี่ยนเป็น PRIVATE ขณะอยู่ใน collection (409)
+- [x] audit log `UPDATE` / `DELETE`
+- [x] UI: ฟอร์มแก้ไข และกล่องยืนยันการลบ (หน้ารายละเอียด)
 - [ ] (ภายหลัง) job ลบถาวรหลัง 7 วัน
-- [ ] ทดสอบ: คนที่ไม่ใช่ owner ต้องแก้ไขหรือลบไม่ได้
+- [x] ทดสอบ: คนที่ไม่ใช่ owner แก้ไขหรือลบไม่ได้ (404)
