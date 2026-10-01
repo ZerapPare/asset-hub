@@ -3,20 +3,17 @@ import { sql } from "@/lib/db";
 import type { DbProcessingStatus } from "@/lib/schema";
 import { isUuid } from "@/lib/validate";
 
-/** ถามได้สูงสุดกี่ไฟล์ต่อครั้ง (หน้า Library แสดงสูงสุด 100) */
+/** จำนวน Asset สูงสุดต่อคำขอ */
 export const MAX_STATUS_IDS = 100;
 
 export type ProcessingStatusResult = {
   status: DbProcessingStatus;
   updatedAt: string;
-  /** สาเหตุที่ประมวลผลไม่สำเร็จ — แสดงเฉพาะเจ้าของไฟล์ */
+  /** สาเหตุล้มเหลว; มีเฉพาะเจ้าของไฟล์ */
   error?: string;
 };
 
-/**
- * สถานะการประมวลผลของหลาย Asset ในครั้งเดียว
- * ไฟล์ที่ไม่พบ ไม่มีสิทธิ์ หรือ id ผิดรูปแบบ จะไม่มีใน object (ไม่เผยว่ามีไฟล์นั้นอยู่)
- */
+/** คืนสถานะหลาย Asset; ไม่รวม ID ที่ไม่พบหรือไม่มีสิทธิ์ */
 export async function getProcessingStatuses(
   userId: string,
   assetIds: string[],
@@ -59,7 +56,7 @@ export async function getProcessingStatuses(
   );
 }
 
-/** สถานะของ Asset เดียว — null = ไม่พบหรือไม่มีสิทธิ์ */
+/** คืน null เมื่อไม่พบหรือไม่มีสิทธิ์ */
 export async function getProcessingStatus(userId: string, assetId: string): Promise<ProcessingStatusResult | null> {
   const statuses = await getProcessingStatuses(userId, [assetId]);
   return statuses[assetId.toLowerCase()] ?? null;

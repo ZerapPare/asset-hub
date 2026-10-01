@@ -43,11 +43,18 @@ export async function getDownloadUrl(userId: string, assetId: string) {
   return url;
 }
 
-// ใช้ thumbnail ถ้ามี ไม่งั้นไฟล์ต้นฉบับ
+// หน้ารายละเอียดต้องได้ต้นฉบับเสมอ เพื่อรองรับการซูมและ PDF viewer
 export async function getPreviewUrl(userId: string, assetId: string) {
   const row = await findViewableFile(userId, assetId);
-  if (row.thumbnail_key) {
-    return presignGet(row.thumbnail_key, { filename: `${row.display_name}.webp`, inline: true });
-  }
   return presignGet(row.s3_key, { filename: downloadName(row), inline: true, contentType: row.mime_type });
+}
+
+export async function getThumbnailUrl(userId: string, assetId: string) {
+  const row = await findViewableFile(userId, assetId);
+  if (!row.thumbnail_key) throw new HttpError(404, "THUMBNAIL_NOT_FOUND", "ยังไม่มีภาพตัวอย่าง");
+  return presignGet(row.thumbnail_key, {
+    filename: `${row.display_name}.webp`,
+    inline: true,
+    contentType: "image/webp",
+  });
 }

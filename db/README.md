@@ -9,6 +9,7 @@ PostgreSQL + pgvector (>= 0.5.0) + pg_trgm
 | `migrations/0001_schema.sql` | extensions, ตาราง, unique index ที่บังคับกฎข้อมูล, trigger `updated_at` |
 | `migrations/0002_indexes.sql` | index เพื่อความเร็ว (FK, dashboard, purge, keyword search, semantic search) |
 | `migrations/0003_search_indexes.sql` | index สำหรับค้น Tag และชื่อ Asset ด้วยคำสั้น |
+| `migrations/0005_thumbnail_process_type.sql` | เพิ่ม `THUMBNAIL` ใน `processing_workflows.process_type` |
 
 - รันตามลำดับเลขไฟล์ แต่ละไฟล์อยู่ใน transaction เดียว ถ้า error ให้ `ROLLBACK` แล้วแก้ก่อนรันใหม่
 - แก้ schema หลังจากแชร์ไปแล้ว → สร้างไฟล์ใหม่ต่อท้าย (`0003_...sql`) อย่าแก้ไฟล์เดิม

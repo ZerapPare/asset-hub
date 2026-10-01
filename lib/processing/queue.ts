@@ -1,6 +1,5 @@
 import type { FileType } from "@/lib/types";
 
-// ข้อความตาม docs/plan/pare/11-contract-with-person2.md (A4)
 export type ProcessingMessage = {
   version: 1;
   assetId: string;
@@ -11,7 +10,11 @@ export type ProcessingMessage = {
   fileSize: number;
 };
 
-// TODO: ส่งเข้า SQS เมื่อมี AWS (ตอนนี้ log ไว้ก่อน)
+// TODO: Production ส่ง SQS; ตอนนี้รันใน server แบบไม่รอผล
 export async function enqueueProcessing(message: ProcessingMessage) {
-  console.info("[processing] enqueue", message);
+  // Lazy import ไม่ให้ route โหลด sharp/pdf.js ล่วงหน้า
+  const { processAsset } = await import("./worker");
+  void processAsset(message).catch(() => {
+    // Worker บันทึก failure แล้ว
+  });
 }

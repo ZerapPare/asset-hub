@@ -16,7 +16,7 @@ export type UserStatus = (typeof USER_STATUSES)[number];
 export const COLLECTION_PERMISSIONS = ["OWNER", "EDITOR", "VIEWER"] as const;
 export type CollectionPermission = (typeof COLLECTION_PERMISSIONS)[number];
 
-export const PROCESS_TYPES = ["TEXT_EXTRACTION", "TEXT_EMBEDDING", "IMAGE_EMBEDDING"] as const;
+export const PROCESS_TYPES = ["TEXT_EXTRACTION", "THUMBNAIL", "TEXT_EMBEDDING", "IMAGE_EMBEDDING"] as const;
 export type ProcessType = (typeof PROCESS_TYPES)[number];
 
 export const WORKFLOW_STATUSES = ["PENDING", "PROCESSING", "SUCCESS", "FAILED"] as const;
