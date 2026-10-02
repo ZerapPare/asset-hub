@@ -9,4 +9,6 @@ export const secrets = {
   googleClientId: new sst.Secret("GoogleClientId"),
   googleClientSecret: new sst.Secret("GoogleClientSecret"),
   jwtSecret: new sst.Secret("JwtSecret"),
+  // master password ของ RDS (ตั้งเองตอนสร้างใน console)
+  dbPassword: new sst.Secret("DbPassword"),
 };

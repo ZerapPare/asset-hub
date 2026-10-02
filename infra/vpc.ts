@@ -1,3 +1,5 @@
+import { assertFilled } from "./assert-filled";
+
 // VPC สร้างเองใน AWS Console (ดูขั้นตอนใน infra/README.md)
 // SST ใช้ sst.aws.Vpc.get() กับ VPC ที่ไม่ได้สร้างด้วย SST ไม่ได้ จึงเก็บ ID ไว้ตรงนี้แล้วส่งให้ component อื่นเอง
 // ID พวกนี้ไม่ใช่ความลับ commit ได้ — ห้ามใส่ password / token ในไฟล์นี้ (ใช้ infra/secrets.ts)
@@ -14,11 +16,4 @@ export const vpc = {
   natInstance: "i-0ed4c5b38840e2c26",
 };
 
-const missing = Object.entries(vpc)
-  .filter(([, v]) => JSON.stringify(v).includes("REPLACE_ME"))
-  .map(([k]) => k);
-if (missing.length) {
-  throw new Error(
-    `infra/vpc.ts: ยังไม่ได้ใส่ ID จาก AWS Console → ${missing.join(", ")}`,
-  );
-}
+assertFilled("infra/vpc.ts", vpc);
