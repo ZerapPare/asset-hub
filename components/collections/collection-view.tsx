@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AssetCard } from "@/components/assets/asset-card";
-import { FolderIcon, FolderPlusIcon, LayersIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { FolderIcon, FolderPlusIcon, LayersIcon, PencilIcon, PlusIcon, TrashIcon, UserPlusIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
@@ -120,7 +120,13 @@ export function CollectionView({ collection: c, assets, myUserId, meName, q, sor
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {isOwner && (
+            <button type="button" onClick={() => setDialog("members")} className="flex h-12 items-center gap-2 rounded-xl border border-brand/40 bg-brand-soft px-5 font-semibold text-brand-ink hover:bg-brand-soft/70 hover:border-brand">
+              <UserPlusIcon className="size-5" />
+              เพิ่มสมาชิก
+            </button>
+          )}
           {canEdit && (
             <button type="button" onClick={() => setDialog("add")} className="flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-hover">
               <PlusIcon className="size-5" />

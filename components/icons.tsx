@@ -285,3 +285,10 @@ export const UserIcon = (p: IconProps) => (
     <path d="M4 21a8 8 0 0 1 16 0" />
   </Stroke>
 );
+
+export const UserPlusIcon = (p: IconProps) => (
+  <Stroke {...p}>
+    <circle cx="9" cy="8" r="4" />
+    <path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6" />
+  </Stroke>
+);

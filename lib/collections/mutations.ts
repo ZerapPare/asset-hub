@@ -19,8 +19,9 @@ function parseDescription(value: unknown) {
   return desc || null;
 }
 
+// เจ้าของ = ผู้สร้างเท่านั้น ตั้งให้คนอื่นไม่ได้
 function parseRole(value: unknown): CollectionPermission {
-  if (!COLLECTION_PERMISSIONS.includes(value as CollectionPermission)) {
+  if (!COLLECTION_PERMISSIONS.includes(value as CollectionPermission) || value === "OWNER") {
     throw new HttpError(400, "INVALID_PERMISSION", "สิทธิ์ไม่ถูกต้อง");
   }
   return value as CollectionPermission;
@@ -162,24 +163,22 @@ export async function addMember(userId: string, id: string, input: { email?: unk
   });
 }
 
-// ล็อกสมาชิกทั้งหมด แล้วเช็กว่ายังเหลือ OWNER
-async function lockMembers(tx: TransactionSql, id: string, targetId: string) {
-  const members = await tx<{ user_id: string; permission: CollectionPermission }[]>`
-    SELECT user_id, permission FROM collection_members WHERE collection_id = ${id} FOR UPDATE
+// ล็อกแถวสมาชิก / เจ้าของแก้ไม่ได้
+async function lockMember(tx: TransactionSql, id: string, targetId: string) {
+  const [target] = await tx<{ permission: CollectionPermission }[]>`
+    SELECT permission FROM collection_members WHERE collection_id = ${id} AND user_id = ${targetId} FOR UPDATE
   `;
-  const target = members.find((m) => m.user_id === targetId);
   if (!target) throw new HttpError(404, "MEMBER_NOT_FOUND", "ไม่พบสมาชิก");
-  const owners = members.filter((m) => m.permission === "OWNER").length;
-  return { target, isLastOwner: target.permission === "OWNER" && owners === 1 };
+  if (target.permission === "OWNER") throw new HttpError(409, "OWNER_FIXED", "เจ้าของ Collection เปลี่ยนหรือออกไม่ได้");
+  return target;
 }
 
 export async function changeMemberPermission(userId: string, id: string, targetId: string, permission: unknown) {
   await requireCollectionRole(userId, id, "OWNER");
   const role = parseRole(permission);
   await sql.begin(async (tx) => {
-    const { target, isLastOwner } = await lockMembers(tx, id, targetId);
+    const target = await lockMember(tx, id, targetId);
     if (target.permission === role) return;
-    if (isLastOwner) throw new HttpError(409, "LAST_OWNER", "ต้องมี OWNER อย่างน้อย 1 คน");
     await tx`UPDATE collection_members SET permission = ${role} WHERE collection_id = ${id} AND user_id = ${targetId}`;
     await audit(tx, {
       userId, collectionId: id, targetUserId: targetId, action: "CHANGE_MEMBER_PERMISSION",
@@ -188,12 +187,11 @@ export async function changeMemberPermission(userId: string, id: string, targetI
   });
 }
 
-// OWNER ลบใครก็ได้ / สมาชิกออกเองได้
+// OWNER ลบสมาชิกได้ / สมาชิกออกเองได้ (เจ้าของออกไม่ได้)
 export async function removeMember(userId: string, id: string, targetId: string) {
   await requireCollectionRole(userId, id, targetId === userId ? "VIEWER" : "OWNER");
   await sql.begin(async (tx) => {
-    const { isLastOwner } = await lockMembers(tx, id, targetId);
-    if (isLastOwner) throw new HttpError(409, "LAST_OWNER", "ต้องมี OWNER อย่างน้อย 1 คน");
+    await lockMember(tx, id, targetId);
     await tx`DELETE FROM collection_members WHERE collection_id = ${id} AND user_id = ${targetId}`;
     await audit(tx, { userId, collectionId: id, targetUserId: targetId, action: "REMOVE_MEMBER" });
   });

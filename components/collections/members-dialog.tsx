@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CloseIcon } from "@/components/icons";
+import { CloseIcon, UserPlusIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import type { CollectionMember } from "@/lib/collections/queries";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/config";
-import { COLLECTION_PERMISSIONS, type CollectionPermission } from "@/lib/schema";
+import type { CollectionPermission } from "@/lib/schema";
 import { ROLE_LABELS, collectionRequest } from "./api";
 
 type Props = {
@@ -18,6 +18,9 @@ type Props = {
   open: boolean;
   onClose: () => void;
 };
+
+// เจ้าของ = ผู้สร้างเท่านั้น ตั้งให้คนอื่นไม่ได้
+const MEMBER_ROLES = ["EDITOR", "VIEWER"] as const;
 
 const selectClass =
   "h-10 rounded-lg border border-line bg-surface px-2 text-sm font-medium outline-none focus:border-brand focus:ring-4 focus:ring-brand/15";
@@ -41,9 +44,6 @@ export function MembersDialog({ collectionId, members, myUserId, isOwner, open, 
     }
     setBusy(false);
   }
-
-  // เจ้าของคนเดียว = ออกไม่ได้
-  const isLastOwner = isOwner && members.filter((m) => m.role === "OWNER").length === 1;
 
   const base = `/${collectionId}/members`;
   const add = () => run(() => collectionRequest(base, "POST", { email, permission: role }), () => setEmail(""));
@@ -86,12 +86,13 @@ export function MembersDialog({ collectionId, members, myUserId, isOwner, open, 
               />
             </label>
             <select value={role} onChange={(e) => setRole(e.target.value as CollectionPermission)} aria-label="สิทธิ์" className={selectClass}>
-              {COLLECTION_PERMISSIONS.map((p) => (
+              {MEMBER_ROLES.map((p) => (
                 <option key={p} value={p}>{ROLE_LABELS[p]}</option>
               ))}
             </select>
-            <button type="submit" disabled={busy || !email.trim()} className="h-10 rounded-lg bg-brand px-4 font-semibold text-white hover:bg-brand-hover disabled:opacity-50">
-              เพิ่ม
+            <button type="submit" disabled={busy || !email.trim()} className="flex h-10 items-center gap-2 rounded-lg bg-brand px-4 font-semibold text-white hover:bg-brand-hover disabled:opacity-50">
+              <UserPlusIcon className="size-4" />
+              เพิ่มสมาชิก
             </button>
             <p className="w-full text-xs text-ink-subtle">เพิ่มได้เฉพาะคนที่เคยเข้าสู่ระบบ AssetHub แล้ว</p>
           </form>
@@ -108,7 +109,7 @@ export function MembersDialog({ collectionId, members, myUserId, isOwner, open, 
                 </span>
                 <span className="block truncate text-sm text-ink-muted">{m.email}</span>
               </span>
-              {isOwner && m.userId !== myUserId ? (
+              {isOwner && m.role !== "OWNER" ? (
                 <>
                   <select
                     value={m.role}
@@ -117,7 +118,7 @@ export function MembersDialog({ collectionId, members, myUserId, isOwner, open, 
                     aria-label={`สิทธิ์ของ ${m.name}`}
                     className={selectClass}
                   >
-                    {COLLECTION_PERMISSIONS.map((p) => (
+                    {MEMBER_ROLES.map((p) => (
                       <option key={p} value={p}>{ROLE_LABELS[p]}</option>
                     ))}
                   </select>
@@ -132,11 +133,7 @@ export function MembersDialog({ collectionId, members, myUserId, isOwner, open, 
           ))}
         </ul>
 
-        {isLastOwner ? (
-          <p className="text-sm text-ink-muted">
-            คุณเป็นเจ้าของคนเดียว จึงออกจาก Collection ไม่ได้ — ตั้งสมาชิกคนอื่นเป็นเจ้าของก่อน หรือลบ Collection แทน
-          </p>
-        ) : (
+        {!isOwner && (
           <button type="button" onClick={leave} disabled={busy} className="text-sm font-semibold text-danger hover:underline">
             ออกจาก Collection นี้
           </button>
