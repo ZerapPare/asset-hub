@@ -1,4 +1,6 @@
 import { sql } from "@/lib/db";
+import { HttpError } from "@/lib/http";
+import type { CollectionPermission } from "@/lib/schema";
 
 // กฎ Asset ที่ผู้ใช้มองเห็น:
 // - Asset ที่ถูกลบจะไม่แสดง
@@ -50,10 +52,29 @@ export async function canViewAsset(userId: string, assetId: string): Promise<boo
 // TODO: canDeleteAsset — เจ้าของ Asset เท่านั้น
 // TODO: canManageAssetTags — เจ้าของ Asset เท่านั้น
 
-// TODO: getCollectionPermission — คืน OWNER, EDITOR, VIEWER หรือ null
-// TODO: canViewCollection — สมาชิกระดับ VIEWER ขึ้นไป
-// TODO: canEditCollection — สมาชิกระดับ EDITOR ขึ้นไป
-// TODO: canManageCollectionMembers — OWNER เท่านั้น
-// TODO: canDeleteCollection — OWNER เท่านั้น
-// TODO: canAddAssetToCollection — EDITOR ขึ้นไป และต้องผ่านกฎของ Asset
-// TODO: canRemoveAssetFromCollection — EDITOR ขึ้นไป
+// สิทธิ์ Collection: VIEWER < EDITOR < OWNER
+const ROLE_RANK: Record<CollectionPermission, number> = { VIEWER: 1, EDITOR: 2, OWNER: 3 };
+
+export function hasCollectionRole(role: CollectionPermission | null, min: CollectionPermission) {
+  return role !== null && ROLE_RANK[role] >= ROLE_RANK[min];
+}
+
+// null = ไม่ใช่สมาชิก
+export async function getCollectionPermission(userId: string, collectionId: string): Promise<CollectionPermission | null> {
+  if (!UUID_RE.test(collectionId)) return null;
+  const [row] = await sql<{ permission: CollectionPermission }[]>`
+    SELECT cm.permission
+    FROM collection_members cm
+    JOIN collections c ON c.collection_id = cm.collection_id AND c.deleted_at IS NULL
+    WHERE cm.collection_id = ${collectionId} AND cm.user_id = ${userId}
+  `;
+  return row?.permission ?? null;
+}
+
+// ไม่ใช่สมาชิก 404 / สิทธิ์ไม่พอ 403
+export async function requireCollectionRole(userId: string, collectionId: string, min: CollectionPermission) {
+  const role = await getCollectionPermission(userId, collectionId);
+  if (!role) throw new HttpError(404, "COLLECTION_NOT_FOUND", "ไม่พบ Collection");
+  if (!hasCollectionRole(role, min)) throw new HttpError(403, "FORBIDDEN", "คุณไม่มีสิทธิ์ทำรายการนี้ใน Collection");
+  return role;
+}

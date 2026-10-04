@@ -21,3 +21,12 @@ export function errorResponse(error: unknown) {
 export async function readJson<T>(request: Request): Promise<Partial<T>> {
   return (await request.json().catch(() => ({}))) as Partial<T>;
 }
+
+// แปลง error เป็น response
+export async function handle(fn: () => Promise<Response>) {
+  try {
+    return await fn();
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

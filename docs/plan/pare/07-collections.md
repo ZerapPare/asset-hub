@@ -58,9 +58,10 @@ DELETE /api/collections/:id/members/:userId     (OWNER; สมาชิกออ
 - `asset_collection`: PK `(asset_id, collection_id)` (มีอยู่แล้ว)
 
 ## Checklist
-- [ ] `requireCollectionRole()`
-- [ ] CRUD collection (สร้างพร้อมเพิ่มผู้สร้างเป็น OWNER)
-- [ ] เพิ่ม/เอา asset ออก + ห้าม PRIVATE + TEAM เพิ่มได้เฉพาะเจ้าของไฟล์
-- [ ] จัดการสมาชิก + กันไม่ให้ OWNER คนสุดท้ายหายไป
-- [ ] UI: หน้ารายการ collection, หน้า collection, หน้าจัดการสมาชิก, ปุ่ม "เพิ่มเข้า Collection" ในหน้า asset/upload
-- [ ] ทดสอบสิทธิ์ครบทุกแถวในตารางด้านบน
+- [x] `getCollectionPermission()` / `requireCollectionRole()` ใน `lib/access.ts`
+- [x] CRUD collection (สร้างพร้อมเพิ่มผู้สร้างเป็น OWNER, ลบแบบ soft delete) — `lib/collections/mutations.ts`
+- [x] เพิ่ม/เอาไฟล์ออก (หลายไฟล์) + ห้าม PRIVATE (409) + TEAM เพิ่มได้เฉพาะเจ้าของไฟล์ (403)
+- [x] จัดการสมาชิก (เพิ่มด้วยอีเมล, เปลี่ยนสิทธิ์, ลบ, ออกเอง) + กัน OWNER คนสุดท้าย (409)
+- [x] UI: หน้ารายการ, หน้า Collection, popup สร้าง / เพิ่มไฟล์ / สมาชิก / แก้ไข / ลบ, sidebar ข้อมูลจริง
+- [x] ทดสอบสิทธิ์ครบทุกแถว (OWNER / EDITOR / VIEWER / ไม่ใช่สมาชิก)
+- [ ] ลบ Collection ถาวรหลัง 7 วัน (งานเก็บกวาด)

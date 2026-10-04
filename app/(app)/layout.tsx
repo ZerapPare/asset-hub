@@ -5,6 +5,7 @@ import { PasswordBanner } from "@/components/app/password-banner";
 import { Sidebar } from "@/components/app/sidebar";
 import { SidebarProvider } from "@/components/app/sidebar-state";
 import { Topbar } from "@/components/app/topbar";
+import { CreateCollectionDialog } from "@/components/collections/create-dialog";
 import { UploadDialog } from "@/components/upload/upload-dialog";
 import { getSummary } from "@/lib/api/assets";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </div>
       <Suspense>
         <UploadDialog userName={user.display_name} collections={collections} tagOptions={tagOptions} />
+        <CreateCollectionDialog />
       </Suspense>
     </SidebarProvider>
   );

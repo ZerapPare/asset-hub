@@ -18,6 +18,10 @@ export function AssetThumb({ asset, className = "" }: { asset: Asset; className?
           src={`/api/assets/${asset.id}/thumbnail`}
           alt=""
           loading="lazy"
+          // โหลดพลาดก่อน React พร้อม onError จะไม่ทำงาน
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth === 0) setFailed(true);
+          }}
           onError={() => setFailed(true)}
           className="h-full w-full object-cover"
         />

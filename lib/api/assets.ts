@@ -1,24 +1,25 @@
 import { visibleAssetsWhere } from "@/lib/access";
 import { assetFilters, type AssetFilterOptions } from "@/lib/assets/search";
 import { countVisibleAssets, getAssetTotals } from "@/lib/assets/stats";
+import { listMyCollections } from "@/lib/collections/queries";
 import { STORAGE_QUOTA } from "@/lib/config";
 import { sql } from "@/lib/db";
 import type { Asset, FileType, ProcessingStatus, Summary } from "@/lib/types";
 import { isUuid } from "@/lib/validate";
 
-// TODO: Collection ยังไม่ได้ดึงจาก DB
 export async function getSummary(userId: string): Promise<Summary> {
   // จำนวนไฟล์ = ที่มองเห็นได้ (ตรงกับหน้า Library) / พื้นที่จัดเก็บ = เฉพาะไฟล์ของตัวเอง
-  const [visible, { storageUsed, byType }, [{ tags }]] = await Promise.all([
+  const [visible, { storageUsed, byType }, [{ tags }], collections] = await Promise.all([
     countVisibleAssets(userId),
     getAssetTotals(userId),
     sql<{ tags: number }[]>`SELECT COUNT(*)::int AS tags FROM tags`,
+    listMyCollections(userId),
   ]);
   return {
     totalAssets: visible.total,
     documents: visible.documents,
     images: visible.images,
-    collections: [],
+    collections,
     tags,
     storage: {
       used: storageUsed,

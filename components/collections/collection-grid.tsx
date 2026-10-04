@@ -19,7 +19,7 @@ export function CollectionGrid({ collections }: { collections: Collection[] }) {
       {collections.length === 0 ? (
         <EmptyState>
           ยังไม่มี Collection —{" "}
-          <Link href="/collections/new" className="font-semibold text-brand hover:text-brand-hover">
+          <Link href="/collections?create=1" scroll={false} className="font-semibold text-brand hover:text-brand-hover">
             สร้าง Collection แรก
           </Link>
         </EmptyState>

@@ -6,14 +6,15 @@ import { AssetThumb } from "./asset-thumb";
 import { fileTypeMeta } from "./file-type";
 import { LiveStatusBadge } from "./live-status";
 
-export function AssetCard({ asset, meName }: { asset: Asset; meName: string }) {
+// failedHint = แสดง "ประมวลผลไม่สำเร็จ · ดูสาเหตุ"
+export function AssetCard({ asset, meName, failedHint = false }: { asset: Asset; meName: string; failedHint?: boolean }) {
   const ownerName = asset.owner.isMe ? meName : asset.owner.name;
   const typeColor = fileTypeMeta[asset.fileType].swatch;
 
   return (
     <Link
       href={`/assets/${asset.id}`}
-      className="group overflow-hidden rounded-2xl border border-line bg-surface transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
+      className="group block overflow-hidden rounded-2xl border border-line bg-surface transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
     >
       <div className="relative">
         <AssetThumb asset={asset} className="aspect-[16/7]" />
@@ -35,6 +36,11 @@ export function AssetCard({ asset, meName }: { asset: Asset; meName: string }) {
           <span className="truncate font-medium text-ink">{asset.owner.isMe ? "คุณ" : ownerName}</span>
           · {formatShortDate(asset.createdAt)}
         </p>
+        {failedHint && asset.status === "FAILED" && (
+          <p className="text-sm text-danger">
+            ประมวลผลไม่สำเร็จ · <span className="font-semibold underline">ดูสาเหตุ</span>
+          </p>
+        )}
       </div>
     </Link>
   );

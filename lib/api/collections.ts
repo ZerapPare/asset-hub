@@ -1,6 +1,5 @@
-import type { Collection } from "@/lib/types";
+import { listMyCollections, type MyCollection } from "@/lib/collections/queries";
 
-// TODO: GET /api/collections
-export async function listCollections(): Promise<Collection[]> {
-  return [];
+export async function listCollections(userId: string): Promise<MyCollection[]> {
+  return listMyCollections(userId);
 }

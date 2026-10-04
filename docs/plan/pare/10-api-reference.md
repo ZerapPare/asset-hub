@@ -34,16 +34,13 @@
 ## Collections — [07](07-collections.md)
 | Method | Path | สิทธิ์ |
 |---|---|---|
-| GET | `/api/collections` | user |
-| POST | `/api/collections` | user |
-| GET | `/api/collections/:id` | VIEWER+ |
+| POST | `/api/collections` | user — ผู้สร้างเป็น OWNER |
 | PATCH | `/api/collections/:id` | EDITOR+ |
-| DELETE | `/api/collections/:id` | OWNER |
-| GET | `/api/collections/:id/assets` | VIEWER+ |
-| POST | `/api/collections/:id/assets` | EDITOR+ |
-| DELETE | `/api/collections/:id/assets/:assetId` | EDITOR+ |
-| GET | `/api/collections/:id/members` | VIEWER+ |
-| POST | `/api/collections/:id/members` | OWNER |
+| DELETE | `/api/collections/:id` | OWNER (soft delete) |
+| GET | `/api/collections/:id/candidates?q=` | EDITOR+ — ไฟล์ที่เพิ่มได้ |
+| POST | `/api/collections/:id/assets` | EDITOR+ — `{ assetIds }` |
+| DELETE | `/api/collections/:id/assets` | EDITOR+ — `{ assetIds }` |
+| POST | `/api/collections/:id/members` | OWNER — `{ email, permission }` |
 | PATCH | `/api/collections/:id/members/:userId` | OWNER |
 | DELETE | `/api/collections/:id/members/:userId` | OWNER / ตัวเอง |
 

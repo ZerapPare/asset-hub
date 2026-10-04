@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { readSession, type AuthMethod } from "@/lib/auth/session";
 import { sql } from "@/lib/db";
+import { HttpError } from "@/lib/http";
 import type { UserRow } from "@/lib/schema";
 
 // เปลี่ยนรหัสได้โดยไม่ใส่รหัสเดิม ถ้าเพิ่ง login ด้วย Google
@@ -34,3 +35,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     recentGoogleAuth: session.amr === "google" && age <= RECENT_AUTH_SECONDS,
   };
 });
+
+// ไม่ได้ login → 401
+export async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) throw new HttpError(401, "UNAUTHORIZED", "กรุณาเข้าสู่ระบบ");
+  return user;
+}
