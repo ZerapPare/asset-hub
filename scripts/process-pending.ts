@@ -4,10 +4,10 @@
 //   npm run process:pending -- --pdf-thumbnails      ทำ thumbnail หน้าแรกให้ PDF ที่ READY แต่ยังไม่มี
 //   npm run process:pending -- --embeddings          ทำ embedding (Semantic Search) ให้ไฟล์ที่ READY แต่ยังไม่มี/ไม่ครบ
 //                                                    (ต้องมี AWS credentials ในเครื่อง — เรียก Bedrock จริง)
-// ใช้ในเครื่องเท่านั้น — บน AWS ใช้ SQS
+// ใช้ในเครื่อง — บน AWS: SQS + worker Lambda และ cron (lib/processing/maintenance.ts) ทำงานนี้ให้อัตโนมัติ
 import { sql } from "@/lib/db";
 import type { DbFileType } from "@/lib/schema";
-import { IMAGE_MODEL, TEXT_MODEL } from "@/lib/embeddings";
+import { findAssetsMissingEmbeddings } from "@/lib/processing/embed";
 import { backfillEmbedding, backfillPdfThumbnail, processAsset } from "@/lib/processing/worker";
 import { bucket } from "@/lib/s3";
 
@@ -25,35 +25,21 @@ async function main() {
   const pdfThumbnails = args.includes("--pdf-thumbnails");
   const embeddings = args.includes("--embeddings");
   const ids = args.filter((a) => !a.startsWith("--"));
-  // เอกสาร: มี chunk ที่ยังไม่มี embedding ของโมเดลปัจจุบัน / รูป: ยังไม่มี embedding ของโมเดลปัจจุบัน
-  const missingEmbedding = sql`(
-    (file_type = 'DOCUMENT' AND EXISTS (
-      SELECT 1 FROM document_chunks dc
-      WHERE dc.asset_id = assets.asset_id
-        AND NOT EXISTS (
-          SELECT 1 FROM document_embeddings de
-          WHERE de.chunk_id = dc.chunk_id AND de.embedding_model = ${TEXT_MODEL}
-        )
-    ))
-    OR (file_type = 'IMAGE' AND NOT EXISTS (
-      SELECT 1 FROM image_embeddings ie
-      WHERE ie.asset_id = assets.asset_id AND ie.embedding_model = ${IMAGE_MODEL}
-    ))
-  )`;
-  const rows = await sql<PendingRow[]>`
-    SELECT asset_id, display_name, s3_key, mime_type, file_type, file_size::float8 AS file_size
-    FROM assets
-    WHERE deleted_at IS NULL
-      ${
-        pdfThumbnails
-          ? sql`AND processing_status = 'READY' AND file_type = 'DOCUMENT' AND thumbnail_key IS NULL`
-          : embeddings
-            ? sql`AND processing_status = 'READY' AND ${missingEmbedding}`
-            : sql`AND processing_status = 'PROCESSING'`
-      }
-      ${ids.length ? sql`AND asset_id::text IN ${sql(ids)}` : sql``}
-    ORDER BY created_at
-  `;
+  // --embeddings: ไม่จำกัดจำนวนรอบที่เคยลอง (สั่งเองในเครื่อง = ตั้งใจลองใหม่)
+  const rows: (PendingRow | Pick<PendingRow, "asset_id" | "display_name">)[] = embeddings
+    ? await findAssetsMissingEmbeddings({ ids })
+    : await sql<PendingRow[]>`
+        SELECT asset_id, display_name, s3_key, mime_type, file_type, file_size::float8 AS file_size
+        FROM assets
+        WHERE deleted_at IS NULL
+          ${
+            pdfThumbnails
+              ? sql`AND processing_status = 'READY' AND file_type = 'DOCUMENT' AND thumbnail_key IS NULL`
+              : sql`AND processing_status = 'PROCESSING'`
+          }
+          ${ids.length ? sql`AND asset_id::text IN ${sql(ids)}` : sql``}
+        ORDER BY created_at
+      `;
   const label = pdfThumbnails ? " PDF ที่ยังไม่มี thumbnail" : embeddings ? "ที่ยังไม่มี embedding" : "ที่รอประมวลผล";
   console.log(`พบ ${rows.length} ไฟล์${label}`);
 
@@ -66,15 +52,7 @@ async function main() {
         ? await backfillPdfThumbnail(row.asset_id)
         : embeddings
           ? await backfillEmbedding(row.asset_id)
-          : await processAsset({
-              version: 1,
-              assetId: row.asset_id,
-              s3Key: row.s3_key,
-              bucket: bucket(),
-              mimeType: row.mime_type,
-              fileType: row.file_type,
-              fileSize: row.file_size,
-            });
+          : await processAsset(toMessage(row as PendingRow));
       summary[result]++;
       console.log(`${result.padEnd(7)} ${row.display_name} (${Date.now() - started} ms)`);
     } catch (error) {
@@ -86,6 +64,18 @@ async function main() {
   console.log(`\nREADY ${summary.READY} · SKIPPED ${summary.SKIPPED} · FAILED ${summary.FAILED}`);
   await sql.end();
   process.exitCode = summary.FAILED > 0 ? 1 : 0;
+}
+
+function toMessage(row: PendingRow) {
+  return {
+    version: 1 as const,
+    assetId: row.asset_id,
+    s3Key: row.s3_key,
+    bucket: bucket(),
+    mimeType: row.mime_type,
+    fileType: row.file_type,
+    fileSize: row.file_size,
+  };
 }
 
 main();

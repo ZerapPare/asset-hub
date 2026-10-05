@@ -20,17 +20,15 @@
 
 **เลือก:** NAT instance
 
-```ts
-// SST v3 (เช็ก docs ของเวอร์ชันที่ใช้อีกครั้ง)
-const vpc = new sst.aws.Vpc("Vpc", {
-  nat: "ec2",
-  bastion: true, // ใช้เครื่อง NAT ตัวเดียวกันเป็น bastion
-});
-```
+**ที่ทำจริง (ต.ค. 2026)** — สร้างเองใน AWS Console ตามขั้นตอนใน [infra/README.md](../../../infra/README.md) และเก็บ ID ไว้ใน `infra/vpc.ts`
+- fck-nat **`t4g.micro` เครื่องเดียว** (บัญชี free plan ใช้ `t4g.nano` ไม่ได้) อยู่ใน public subnet และเป็น bastion ผ่าน SSM ด้วย
+- VPC 2 AZ (RDS บังคับ) — route `0.0.0.0/0` ของ private subnet ทั้งสองชี้ไป NAT ตัวเดียวกัน
+- Security group: `assethub-lambda` (ไม่มี inbound), `assethub-rds` (5432 จาก lambda + nat), `assethub-nat` (จากใน VPC)
+- ไม่ใช้ `sst.aws.Vpc`: จะสร้าง NAT 1 เครื่องต่อ AZ (2 เครื่อง) และ `Vpc.get()` ใช้กับ VPC ที่ไม่ได้สร้างด้วย SST ไม่ได้
 
 **ผลที่ตามมา**
 - ใช้เครื่องเดียวเป็นทั้ง NAT และ Bastion
-- ตัด Bedrock Interface Endpoint ได้ (ประหยัด ~$7–8) แต่ถ้าตัด ต้องแก้ข้อความใน proposal เรื่อง "ข้อมูลไม่ออกสู่อินเทอร์เน็ตสาธารณะ"
+- **ตัด Bedrock Interface Endpoint แล้ว** (ประหยัด ~$7–8): Titan ไม่มีใน ap-southeast-1 ต้องเรียกข้าม region (Mumbai) ซึ่ง endpoint ในสิงคโปร์ใช้ไม่ได้อยู่แล้ว → Lambda เรียก Bedrock ผ่าน NAT — ต้องแก้ข้อความใน proposal เรื่อง "ข้อมูลไม่ออกสู่อินเทอร์เน็ตสาธารณะ"
 - S3 Gateway Endpoint ยังเก็บไว้เหมือนเดิม (ฟรี)
 - **เจ้าของเรื่องนี้:** คนที่ 2 (VPC) แต่คนที่ 1 เป็นฝ่ายที่ต้องการ
 
@@ -48,6 +46,14 @@ const vpc = new sst.aws.Vpc("Vpc", {
 1. embed คำค้นสองครั้ง: ครั้งแรกด้วย Text V2 เพื่อค้นเอกสาร อีกครั้งด้วย Multimodal เพื่อค้นรูป
 2. แสดงผลแยกเป็นส่วนเอกสารกับส่วนรูป ถ้าจะรวมเป็นรายการเดียวให้ใช้ Reciprocal Rank Fusion
 3. JOIN `assets` แล้วกรองสิทธิ์, `READY` และ `deleted_at IS NULL` ทุกครั้ง พร้อมเปิด `hnsw.iterative_scan = relaxed_order` (pgvector 0.8+)
+
+**ที่ทำจริง (ต.ค. 2026)** — รายละเอียดใน [13-semantic-search.md](13-semantic-search.md)
+- Titan ทั้งสองตัว**ไม่มีใน ap-southeast-1** → เรียก Bedrock ที่ `BEDROCK_REGION` (ค่าเริ่มต้น `ap-south-1` Mumbai) ส่วนระบบอื่นอยู่สิงคโปร์
+- Titan Multimodal รับข้อความ**ภาษาอังกฤษเท่านั้น** → คำค้นไทยฝั่งรูปแปลเป็นอังกฤษด้วย **Amazon Nova Micro** (`apac.amazon.nova-micro-v1:0`) ก่อน — แปลไม่ได้ = ข้ามฝั่งรูป (ฝั่งเอกสารค้นได้ปกติ)
+  - เดิมจะใช้ Amazon Translate แต่บัญชี free plan ติด `SubscriptionRequiredException`
+- **ไม่ใช้ Cohere** (Embed v4 / Multilingual v3) แม้รองรับไทยและรูปในโมเดลเดียว: คิดเงินผ่าน AWS Marketplace ซึ่ง free plan ไม่รวม และ credit ไม่ครอบคลุม
+- รวมผลสองฝั่งเป็นรายการเดียวด้วย RRF + ตัดผลด้วยเพดานระยะ/margin จากผลที่ใกล้สุด, cache embedding คำค้นในตาราง `query_embeddings`, ล้ม/ช้า → แสดงผล Keyword แทน
+- embedding ทำหลังไฟล์ READY (ผู้ใช้เปิดไฟล์ได้ทันที) ล้มเหลว → cron ทำใหม่ทุก 30 นาที
 
 **เจ้าของ:** คนที่ 2
 
@@ -92,8 +98,9 @@ export const sql = postgres(process.env.DATABASE_URL!, {
 
 | รายการ | เดิม | ใหม่ |
 |---|---:|---:|
-| RDS + storage | ~$14 | ~$14 |
-| Bedrock Interface Endpoint | ~$7–8 | $0 (ถ้าตัด) หรือ ~$7–8 |
-| NAT instance (t4g.nano) | – | ~$3–4 |
+| RDS + storage | ~$14 | ~$16–22 (ราคา Singapore) |
+| Bedrock Interface Endpoint | ~$7–8 | $0 (ตัดแล้ว) |
+| NAT instance | – | ~$7.7 (`t4g.micro`) + public IPv4 ~$3.6 |
 | Bastion | เปิดเมื่อใช้ | รวมอยู่ใน NAT |
-| **รวม** | **~$22** | **~$17–25** |
+| Bedrock (embedding + แปลคำค้น) | – | < $1 |
+| **รวม** | **~$22** | **~$28–34** (หัก credit ของ free plan; Stop NAT / สร้าง RDS ตอนใกล้ใช้ช่วยประหยัด) |

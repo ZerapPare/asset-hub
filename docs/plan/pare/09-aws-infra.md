@@ -21,11 +21,13 @@
 
 | Lambda | สิทธิ์ |
 |---|---|
-| Web/API | `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` บน `arn:aws:s3:::<bucket>/assets/*`, `sqs:SendMessage` บน processing queue |
-| Processing (คนที่ 2) | `s3:GetObject` + `s3:PutObject` (สำหรับ thumbnail) บน `assets/*` |
+| Web/API | `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` บน `arn:aws:s3:::<bucket>/assets/*`, `sqs:SendMessage` บน processing queue, `bedrock:InvokeModel` (Titan ×2 + Nova Micro: `bedrockPermissions({ translation: true })` จาก `infra/processing.ts`) |
+| Processing worker (คนที่ 2) | `s3:GetObject` / `s3:PutObject` / `s3:DeleteObject` (thumbnail) บน `assets/*`, `bedrock:InvokeModel` Titan ×2 |
+| Maintenance cron (คนที่ 2) | เหมือน worker + `sqs:SendMessage` บน processing queue |
 | Cleanup job | `s3:DeleteObject` บน `assets/*` |
 
 - ถ้าใช้ SST `link: [bucket, queue]` ระบบจะสร้าง IAM policy ให้เอง
+- processing ของคนที่ 2 เขียน `permissions` เอง (จำกัดแค่ `assets/*`) — ดู `infra/processing.ts`
 
 ## CloudFront
 - serve frontend: SST `Nextjs` component จะสร้าง CloudFront + S3 (static) + Lambda (server) ให้
@@ -36,14 +38,16 @@
 
 ## โครงไฟล์ SST (แบ่งกับคนที่ 2 ไม่ให้ชนกัน)
 ```
-sst.config.ts          ← import ทุกไฟล์ใน infra/
+sst.config.ts          ← import ทุกไฟล์ใน infra/ (ใช้ร่วมกัน)
 infra/
-  storage.ts           ← คนที่ 1: bucket + CORS + lifecycle
+  storage.ts           ← คนที่ 1: bucket + CORS + lifecycle (export bucket ให้ processing)
   web.ts               ← คนที่ 1: Nextjs / API + link + secrets
-  vpc.ts               ← คนที่ 2
-  database.ts          ← คนที่ 2
-  processing.ts        ← คนที่ 2: SQS + worker Lambda
+  vpc.ts               ← คนที่ 2: ID ของ VPC/subnet/SG/NAT ที่สร้างใน console ✅
+  database.ts          ← คนที่ 2: endpoint ของ RDS ที่สร้างใน console (รอสร้าง RDS)
+  secrets.ts           ← ชื่อ secret (Google, JWT, DbPassword) — ค่าจริงตั้งด้วย sst secret set ✅
+  processing.ts        ← คนที่ 2: SQS + DLQ + worker Lambda + cron + alarm ✅ (createProcessing(bucket))
 ```
+- VPC / RDS สร้างใน console (ขั้นตอนใน [infra/README.md](../../../infra/README.md)) — SST แค่อ่าน ID ไม่สร้าง/ไม่ลบ
 
 ## Dev ในเครื่อง (MinIO)
 - `docker compose up -d` → Postgres `localhost:5432` และ MinIO `localhost:9000` (console `9001`, user `dev` / `devdevdev`)

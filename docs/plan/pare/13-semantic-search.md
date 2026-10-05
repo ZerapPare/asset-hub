@@ -236,10 +236,11 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 - [x] ขั้น 4 backfill `--embeddings`
 - [x] ขั้น 5 `lib/assets/semantic.ts`
 - [x] ขั้น 6 แทน mock ในหน้า `/assets` + fallback
-- [ ] ขั้น 7 env, IAM, ADR-2, open question ข้อ 10
-- [ ] retry embedding อัตโนมัติบน AWS: cron Lambda (EventBridge ทุก 30–60 นาที) เรียก `backfillEmbedding` กับไฟล์ที่ยังขาด — ตอนนี้ retry ได้แค่รันสคริปต์ในเครื่อง
-- [ ] worker Lambda: timeout ~10 นาที, SQS visibility timeout > Lambda timeout (โควตา Bedrock บัญชีใหม่ ~1.5 chunk/วินาที)
-- [ ] กัน throttle ตอนอัปโหลดพร้อมกัน: ลด `CONCURRENCY` ใน `lib/processing/embed.ts` เหลือ 2–3 หรือลด SQS `maximumConcurrency` / ขอเพิ่มโควตา Bedrock (Service Quotas, `ap-south-1`)
+- [ ] ขั้น 7 env, IAM, ADR-2, open question ข้อ 10 — ✅ env/IAM ของ worker (`infra/processing.ts`), ADR-2, ปิดข้อ 10 แล้ว · เหลือ IAM ของ web ใน `infra/web.ts` (คนที่ 1) และแก้ข้อความใน proposal
+- [x] CloudWatch alarm เมื่อมีข้อความใน DLQ (+ อีเมลผ่าน SNS ถ้าตั้ง `ALARM_EMAIL`)
+- [x] retry embedding อัตโนมัติบน AWS: cron `lib/processing/maintenance.ts` (ทุก 30 นาที, `infra/processing.ts`) — ทำ embedding ที่ขาด + ส่งไฟล์ที่ค้าง PROCESSING เข้าคิวใหม่ (ยังไม่ได้ deploy)
+- [x] worker Lambda: timeout 10 นาที, SQS visibility timeout 15 นาที, DLQ หลังส่ง 3 รอบ (`infra/processing.ts`, ยังไม่ได้ deploy)
+- [x] กัน throttle ตอนอัปโหลดพร้อมกัน: SQS `maximumConcurrency: 2` (`infra/processing.ts`) — ถ้ายังโดน throttle ค่อยลด `CONCURRENCY` ใน `embed.ts` หรือขอเพิ่มโควตา Bedrock
 - [x] เปลี่ยนตัวแปลคำค้นจาก Amazon Translate (ติด `SubscriptionRequiredException`) เป็น Nova Micro
 - [ ] (ไม่เร่ง) Dashboard แสดงจำนวนไฟล์ที่ยังค้นแบบ semantic ไม่ได้ (embedding FAILED/ยังไม่มี)
 - [ ] ทดสอบตามข้อ 4 + เลือก `BEDROCK_REGION`

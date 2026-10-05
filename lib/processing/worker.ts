@@ -116,10 +116,22 @@ export async function backfillEmbedding(assetId: string): Promise<"READY" | "SKI
   `;
   if (!asset) return "SKIPPED";
 
-  const result =
-    asset.file_type === "DOCUMENT"
-      ? await embedDocument(assetId)
-      : await embedAssetImage(assetId, await download(asset.s3_key));
+  if (asset.file_type === "DOCUMENT") {
+    const result = await embedDocument(assetId);
+    return result === "SUCCESS" ? "READY" : result;
+  }
+
+  let data: Uint8Array;
+  try {
+    data = await download(asset.s3_key);
+  } catch (error) {
+    // บันทึกเป็นการลองหนึ่งครั้ง — cron นับจำนวนรอบจาก workflow แล้วเลิกลองเมื่อครบ (ไม่วนไฟล์ที่หายไม่จบ)
+    console.error(`[processing] ${assetId} IMAGE_EMBEDDING download failed:`, error);
+    const processId = await startWorkflow(assetId, "IMAGE_EMBEDDING");
+    await failWorkflow(processId, error instanceof ProcessingError ? error.message : "ดาวน์โหลดไฟล์ไม่สำเร็จ");
+    return "FAILED";
+  }
+  const result = await embedAssetImage(assetId, data);
   return result === "SUCCESS" ? "READY" : result;
 }
 

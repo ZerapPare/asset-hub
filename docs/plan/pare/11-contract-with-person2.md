@@ -20,7 +20,7 @@
 - [x] `collection_members` PK = `(collection_id, user_id)`
 - [x] PK ทุกตารางเป็น UUID (`gen_random_uuid()`)
 - [x] ~~ตาราง Team~~ ไม่ต้องมี: "ทีม" = สมาชิก collection (`collection_members`) ดูกฎใน [04](04-library-download.md)
-- [ ] ค่า `file_type`: `DOCUMENT` / `IMAGE`
+- [x] ค่า `file_type`: `DOCUMENT` / `IMAGE`
 - [ ] Index ตาม [08-filter-sort.md](08-filter-sort.md)
 
 **ระหว่างรอ:** คนที่ 1 พัฒนาบน Postgres ใน docker-compose ไปก่อน
@@ -29,6 +29,7 @@
 - Lambda ของคนที่ 1 ต้องอยู่ใน VPC เพื่อต่อ RDS และต้องเรียก Google OAuth ได้ด้วย
 - จึงต้องมี NAT ในที่นี้คือ NAT instance ตาม [ADR-1](01-architecture-decisions.md)
 - Security Group ของ RDS ต้องรับ connection จาก SG ของ web Lambda
+- ✅ **ทำแล้ว:** NAT `t4g.micro` + SG `assethub-lambda` / `assethub-rds` — ID อยู่ใน `infra/vpc.ts` (web Lambda ใช้ `vpc.privateSubnets` + `vpc.lambdaSecurityGroup`)
 
 ### A3. ใครเปลี่ยน `processing_status` ช่วงไหน
 ```
@@ -50,6 +51,11 @@
 ```
 - คนที่ 2 ต้องทำให้การประมวลผลซ้ำไม่มีผลเสีย (idempotent) เพราะ SQS อาจส่งข้อความเดียวกันมาซ้ำ
 - ข้อความที่ล้มเหลวเกิน N ครั้งให้ไปลง DLQ แล้วตั้งสถานะ `FAILED`
+- ✅ **ทำแล้ว** (`infra/processing.ts`, ยังไม่ได้ deploy):
+  - ส่ง: `enqueueProcessing()` ใน `lib/processing/queue.ts` — ตั้ง env `PROCESSING_QUEUE_URL` = ส่งเข้า SQS, ไม่ตั้ง (dev) = ประมวลผลใน server; ส่งไม่สำเร็จไม่ทำให้อัปโหลดล้ม (cron ส่งใหม่)
+  - รับ: worker `lib/processing/handler.ts` ทีละข้อความ, N = 3 แล้วไป DLQ, รอบสุดท้ายตั้ง `FAILED`, มี CloudWatch alarm เมื่อมีข้อความใน DLQ
+  - cron `lib/processing/maintenance.ts` (ทุก 30 นาที): ส่งไฟล์ที่ค้าง `PROCESSING` > 20 นาทีเข้าคิวใหม่ + ทำ embedding ที่ขาด
+  - **คนที่ 1 ใน `infra/web.ts`:** env `PROCESSING_QUEUE_URL = queue.url` + `sqs:SendMessage` บน `queue.arn`
 
 ### A5. ชนิดไฟล์ที่รองรับ
 - ต้องตรงกันทั้งสองฝั่ง: ฝั่งอัปโหลดรับได้แค่ไหน ฝั่งประมวลผลต้องรองรับได้ทั้งหมด ดูร่างใน [03-upload.md](03-upload.md)
@@ -75,7 +81,7 @@
   - `audit_logs.asset_id` กลายเป็น NULL แต่ log ยังอยู่
 
 ### B4. Thumbnail
-- ใครสร้าง: ___ (เสนอให้คนที่ 2 ทำใน Processing)
+- ใครสร้าง: **คนที่ 2** ใน Processing ✅ (รูปและ PDF หน้าแรก)
 - key: `assets/{assetId}/thumbnail.webp` แล้วอัปเดต `assets.thumbnail_key`
 
 ### B5. Metadata สำหรับ Dashboard
@@ -92,6 +98,8 @@
 | `lib/access.ts` | คนที่ 1 | คนที่ 2 ใช้ใน search |
 | `lib/s3.ts` | คนที่ 1 | คนที่ 2 ใช้ใน processing |
 | S3 bucket (`infra/storage.ts`) | คนที่ 1 | link เข้ากับ processing Lambda |
-| SQS queue (`infra/processing.ts`) | คนที่ 2 | คนที่ 1 link เข้ากับ web เพื่อส่งข้อความ |
+| SQS queue (`infra/processing.ts`) | คนที่ 2 | คนที่ 1 ส่ง env `PROCESSING_QUEUE_URL` + สิทธิ์ `sqs:SendMessage` ให้ web |
+| Bedrock (`lib/embeddings.ts`, `bedrockPermissions()` ใน `infra/processing.ts`) | คนที่ 2 | คนที่ 1 ใส่ `bedrockPermissions({ translation: true })` ให้ web (embed + แปลคำค้นตอนค้นหา) |
 | VPC / RDS (`infra/vpc.ts`, `infra/database.ts`) | คนที่ 2 | คนที่ 1 ให้ web Lambda อยู่ใน VPC |
 | Types ของ enum (`visibility`, `processing_status`, `file_type`) | คนที่ 2 (มาจาก schema) | ใช้ร่วมกัน |
+| วิธี query DB | คนที่ 2 | ใช้ `postgres.js` เขียน SQL ตรง (ไม่ใช้ ORM) — enum/row type เขียนมือใน `lib/schema.ts` |

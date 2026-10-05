@@ -62,7 +62,7 @@ a.deleted_at IS NULL AND (
 - ถ้ามี `thumbnail_key` → presigned GET ของ thumbnail
 - ถ้ายังไม่มีและเป็นรูป → presigned GET ของไฟล์ต้นฉบับ (อายุสั้น)
 - ถ้าเป็น PDF และยังไม่มี thumbnail → แสดง icon ตามประเภทไฟล์
-- ใครสร้าง thumbnail: รอตกลงกับคนที่ 2
+- ใครสร้าง thumbnail: **คนที่ 2** ใน worker — รูป: ย่อเป็น WebP ≤ 640×960, PDF: render หน้าแรก (`assets/{assetId}/thumbnail.webp`)
 
 ## Download
 ```
@@ -81,6 +81,6 @@ GET /api/assets/:id/download
 - [x] รายละเอียด Asset (`lib/assets/detail.ts`)
 - [x] `GET /api/assets/:id/download` + audit log (ชื่อไฟล์ภาษาไทยผ่าน `filename*`)
 - [x] `GET /api/assets/:id/preview` (inline, ใช้ thumbnail ถ้ามี)
-- [x] หน้า Library (grid + ป้ายสถานะ) — thumbnail จริงรอ Processing
+- [x] หน้า Library (grid + ป้ายสถานะ) — thumbnail มาจาก Processing แล้ว
 - [x] หน้ารายละเอียด Asset (`/assets/[id]`)
 - [x] ทดสอบ: asset PRIVATE ของคนอื่นได้ 404 ทั้งหน้า, download และ preview

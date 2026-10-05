@@ -20,7 +20,10 @@ export default $config({
     await import("./infra/secrets");
     // ยังมี REPLACE_ME (ยังไม่ได้สร้าง RDS) → deploy หยุดพร้อมบอกช่องที่ขาด
     const { database } = await import("./infra/database"); // คนที่ 2 (console)
-    // TODO: storage.ts (คนที่ 1), processing.ts (คนที่ 2), web.ts (คนที่ 1)
+    // TODO: storage.ts (คนที่ 1) แล้วเปิดสองบรรทัดนี้ — processing ต้องใช้ bucket
+    // const { bucket } = await import("./infra/storage");
+    // const { queue } = (await import("./infra/processing")).createProcessing({ name: bucket.name, arn: bucket.arn });
+    // TODO: web.ts (คนที่ 1) — env PROCESSING_QUEUE_URL = queue.url + sqs:SendMessage, bedrockPermissions({ translation: true })
 
     return {
       vpc: vpc.id,

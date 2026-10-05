@@ -132,6 +132,53 @@ async function embedImageSteps(assetId: string, data: Uint8Array): Promise<Embed
   }
 }
 
+/**
+ * Asset ที่ READY แต่ embedding ของโมเดลปัจจุบันยังไม่ครบ — ใช้ทั้งสคริปต์ backfill และ cron
+ * idleMinutes: ข้ามไฟล์ที่เพิ่ง READY (worker อาจกำลังทำ embedding อยู่)
+ * maxAttempts: ข้ามไฟล์ที่ลองมาแล้วหลายรอบ (เช่น ไฟล์ใน S3 หาย) ไม่ให้ cron ลองซ้ำไม่จบ
+ * เรียงจากไฟล์ที่ลองล่าสุดนานที่สุด ไม่ให้ไฟล์ที่ล้มซ้ำๆ บังไฟล์อื่น
+ */
+export async function findAssetsMissingEmbeddings(
+  options: { ids?: string[]; limit?: number; idleMinutes?: number; maxAttempts?: number } = {},
+) {
+  const embeddingTypes = sql`('TEXT_EMBEDDING', 'IMAGE_EMBEDDING')`;
+  return sql<{ asset_id: string; display_name: string }[]>`
+    SELECT a.asset_id, a.display_name
+    FROM assets a
+    WHERE a.deleted_at IS NULL
+      AND a.processing_status = 'READY'
+      AND (
+        (a.file_type = 'DOCUMENT' AND EXISTS (
+          SELECT 1 FROM document_chunks dc
+          WHERE dc.asset_id = a.asset_id
+            AND NOT EXISTS (
+              SELECT 1 FROM document_embeddings de
+              WHERE de.chunk_id = dc.chunk_id AND de.embedding_model = ${TEXT_MODEL}
+            )
+        ))
+        OR (a.file_type = 'IMAGE' AND NOT EXISTS (
+          SELECT 1 FROM image_embeddings ie
+          WHERE ie.asset_id = a.asset_id AND ie.embedding_model = ${IMAGE_MODEL}
+        ))
+      )
+      ${options.ids?.length ? sql`AND a.asset_id::text IN ${sql(options.ids)}` : sql``}
+      ${options.idleMinutes ? sql`AND a.updated_at < NOW() - make_interval(mins => ${options.idleMinutes})` : sql``}
+      ${
+        options.maxAttempts
+          ? sql`AND (
+              SELECT count(*) FROM processing_workflows pw
+              WHERE pw.asset_id = a.asset_id AND pw.process_type IN ${embeddingTypes}
+            ) < ${options.maxAttempts}`
+          : sql``
+      }
+    ORDER BY (
+      SELECT max(pw.created_at) FROM processing_workflows pw
+      WHERE pw.asset_id = a.asset_id AND pw.process_type IN ${embeddingTypes}
+    ) NULLS FIRST, a.created_at
+    ${options.limit ? sql`LIMIT ${options.limit}` : sql``}
+  `;
+}
+
 function isForeignKeyViolation(error: unknown) {
   return (error as { code?: string }).code === "23503";
 }
