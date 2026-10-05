@@ -6,7 +6,8 @@
 ## สรุปสั้น
 - ใช้ **Titan ของ Amazon** สองตัวตามเดิม (หักจาก Free Tier credit ได้ — Cohere คิดผ่าน AWS Marketplace จึงไม่เข้า credit)
 - Titan **ไม่มีในสิงคโปร์** → เรียก Bedrock ข้ามไป region ที่มี (ตั้งด้วย env `BEDROCK_REGION`) ส่วนอื่นอยู่สิงคโปร์เหมือนเดิม
-- คำค้นภาษาไทยสำหรับ **รูป** → แปลเป็นอังกฤษด้วย **Amazon Translate** ก่อน (Titan Multimodal รับแค่อังกฤษ)
+- คำค้นภาษาไทยสำหรับ **รูป** → แปลเป็นคำค้นอังกฤษด้วย **Amazon Nova Micro** (Bedrock) ก่อน (Titan Multimodal รับแค่อังกฤษ)
+  - เดิมวางแผนใช้ Amazon Translate แต่บัญชี free plan ติด `SubscriptionRequiredException` — Nova เป็นโมเดลของ Amazon หัก credit ได้, ใช้ Bedrock client/IAM ตัวเดียวกัน และแปลเป็น *คำค้น* ได้ดีกว่า
 - ไม่ให้เว็บช้า: embedding ทำ **หลัง** ไฟล์ READY, ตอนค้นยิง Bedrock **พร้อมกัน** + **cache** embedding ของคำค้น + **fallback เป็น Keyword** เมื่อช้า/ล้ม
 - ค่าใช้จ่ายส่วนนี้ **< $1–2/เดือน** (ก้อนใหญ่คือ RDS + NAT ไม่ใช่ Bedrock)
 
@@ -18,7 +19,7 @@
 |---|---|---|---|
 | embed **chunk ของเอกสาร** และ **คำค้นฝั่งเอกสาร** | `amazon.titan-embed-text-v2:0` | `BEDROCK_REGION` | `dimensions: 1024`, `normalize: true` |
 | embed **รูป** และ **คำค้นฝั่งรูป** | `amazon.titan-embed-image-v1` (Titan Multimodal G1) | `BEDROCK_REGION` | `outputEmbeddingLength: 1024` |
-| แปลคำค้นไทย → อังกฤษ (เฉพาะฝั่งรูป) | Amazon Translate `TranslateText` | `AWS_REGION` (`ap-southeast-1`) | `SourceLanguageCode: "th"`, `TargetLanguageCode: "en"` |
+| แปลคำค้นไทย → อังกฤษ (เฉพาะฝั่งรูป) | Amazon Nova Micro ผ่าน Converse API (`apac.amazon.nova-micro-v1:0`) | `BEDROCK_REGION` (inference profile APAC) | `temperature: 0`, `maxTokens: 60`, ตัดเหลือบรรทัดแรก |
 
 ### ข้อจำกัดของโมเดลที่ต้องรู้
 | | Titan Text V2 | Titan Multimodal G1 |
@@ -35,8 +36,10 @@
 - ตัวเลือก: **`ap-south-1` (Mumbai)** หรือ `ap-southeast-2` (Sydney) — มีครบทั้งสองโมเดล
 - ค่าเริ่มต้น `ap-south-1` (น่าจะใกล้สิงคโปร์กว่า) → หลัง deploy ดูเวลาใน log แล้วเลือกตัวที่เร็วกว่า เปลี่ยนแค่ env
 
-### ทำไมระบุ `SourceLanguageCode: "th"` ไม่ใช้ `"auto"`
-- `"auto"` ทำให้ Translate เรียก Amazon Comprehend ตรวจภาษาเพิ่ม → ต้องมีสิทธิ์ `comprehend:DetectDominantLanguage` + เสียเงิน Comprehend + ช้าขึ้น
+### การแปลด้วย Nova Micro
+- Nova Micro ไม่มี on-demand แบบ in-region ใน Mumbai/Singapore → ต้องเรียกด้วย inference profile `apac.amazon.nova-micro-v1:0` (ทดสอบแล้วใช้ได้จาก `ap-south-1` และ `ap-southeast-1`) ประมวลผลภายในภูมิภาค APAC
+- เป็น LLM อาจตอบเกิน → system prompt สั่งให้ตอบแค่คำค้นบรรทัดเดียว, `temperature: 0`, จำกัด token, ตัดเหลือบรรทัดแรก/ตัดเครื่องหมายคำพูด
+- ผลแปลใช้เป็นแค่ข้อความสำหรับ embed (ไม่แสดงผล/ไม่รันต่อ) และถูกเก็บใน cache — prompt injection จากคำค้นไม่มีผลเสีย
 - เราเช็กเองได้ว่ามีอักษรไทยไหมด้วย regex `/[฀-๿]/` → ไม่มีอักษรไทย = ไม่ต้องแปล
 
 ---
@@ -61,7 +64,7 @@ q = "แมวสีส้ม", type = (ทั้งหมด | document | image
   ├─ หา embedding ใน cache (query_embeddings) ── เจอ ──▶ ใช้เลย
   │                                     └─ ไม่เจอ ─▶ เรียกพร้อมกัน (Promise.all):
   │        ├─ [type ≠ image]    Titan Text V2(q)
-  │        └─ [type ≠ document] มีอักษรไทย? → Translate(q) → Titan Multimodal(q_en)
+  │        └─ [type ≠ document] มีอักษรไทย? → Nova Micro(q) → Titan Multimodal(q_en)
   │      แล้วเขียนลง cache
   ├─ SQL เดียว (statement_timeout 3s, hnsw.iterative_scan = relaxed_order)
   │     doc_hits  : document_embeddings ⨝ chunks ⨝ assets (สิทธิ์ + READY + ไม่ถูกลบ + ตัวกรอง) เรียงตามระยะ
@@ -95,7 +98,7 @@ CREATE INDEX idx_query_embeddings_last_used ON query_embeddings (last_used_at);
 - อัปเดต `last_used_at` เฉพาะเมื่อเก่ากว่า 1 วัน (ไม่ให้ทุกการค้นเป็นการเขียน DB)
 - อัปเดตตาราง migration ใน `db/README.md`
 
-### ขั้น 2 — `lib/embeddings.ts` (โมดูลเดียวที่คุยกับ Bedrock/Translate)
+### ขั้น 2 — `lib/embeddings.ts` (โมดูลเดียวที่คุยกับ Bedrock)
 ```ts
 export const TEXT_MODEL = "amazon.titan-embed-text-v2:0";
 export const IMAGE_MODEL = "amazon.titan-embed-image-v1";
@@ -103,15 +106,15 @@ export const IMAGE_MODEL = "amazon.titan-embed-image-v1";
 embedText(text: string): Promise<number[]>          // Titan Text V2
 embedImage(jpeg: Uint8Array): Promise<number[]>     // Titan Multimodal (inputImage base64)
 embedTextForImages(text: string): Promise<number[]> // Titan Multimodal (inputText)
-translateToEnglish(text: string): Promise<string>   // Translate th → en
+translateToEnglish(text: string): Promise<string>   // Nova Micro: คำค้นไทย → คำค้นอังกฤษ
 hasThai(text: string): boolean
 toVector(values: number[]): string                  // "[0.1,0.2,…]" สำหรับ ::vector ใน postgres.js
 ```
-- สร้าง `BedrockRuntimeClient` / `TranslateClient` **ครั้งเดียวระดับ module** (ไม่สร้างใหม่ทุก request → ไม่ต้อง handshake HTTPS ข้าม region ซ้ำ)
+- สร้าง `BedrockRuntimeClient` **ครั้งเดียวระดับ module** (ใช้ทั้ง embedding และแปล) (ไม่สร้างใหม่ทุก request → ไม่ต้อง handshake HTTPS ข้าม region ซ้ำ)
 - ตั้ง timeout ของ HTTP: connect ~1s, request ~2.5s, `maxAttempts: 2` (ฝั่งเว็บ) — worker ใช้ค่าที่หลวมกว่าได้
 - log เวลาที่ใช้ต่อการเรียก (`[bedrock] text 182ms`) ไว้เทียบ region
 - ถ้าวันหนึ่งเปลี่ยนโมเดล (เช่น Cohere Embed v4) แก้แค่ไฟล์นี้ + รัน backfill — ตารางมีคอลัมน์ `embedding_model` แยกรุ่นไว้แล้ว
-- dependency ใหม่: `@aws-sdk/client-bedrock-runtime`, `@aws-sdk/client-translate`
+- dependency ใหม่: `@aws-sdk/client-bedrock-runtime` (ตัวเดียว)
 
 ### ขั้น 3 — Worker: `lib/processing/embed.ts` + ต่อเข้า `processAsset`
 **`embedDocument(assetId)`**
@@ -170,9 +173,9 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
   | Lambda | สิทธิ์ |
   |---|---|
   | worker | `bedrock:InvokeModel` บน `arn:aws:bedrock:<BEDROCK_REGION>::foundation-model/amazon.titan-embed-text-v2:0` และ `.../amazon.titan-embed-image-v1` |
-  | web | สิทธิ์ Bedrock ชุดเดียวกัน + `translate:TranslateText` (Translate ไม่รองรับจำกัด resource → `*`) |
+  | web | สิทธิ์ Bedrock ชุดเดียวกัน + Nova Micro: `bedrock:InvokeModel` บน inference profile `arn:aws:bedrock:<BEDROCK_REGION>:<account>:inference-profile/apac.amazon.nova-micro-v1:0` และ `arn:aws:bedrock:*::foundation-model/amazon.nova-micro-v1:0` (profile ส่งต่อไป region อื่นใน APAC) |
 - Lambda เรียก Bedrock ผ่าน **NAT** ที่มีอยู่ — ไม่ต้องมี Bedrock Interface Endpoint
-- อัปเดตเอกสาร: ADR-2 ใน [01](01-architecture-decisions.md) (region, Translate, เหตุผลที่ไม่ใช้ Cohere), ปิดข้อ 10 ใน [12](12-open-questions.md) (ตัด Bedrock Interface Endpoint), แก้ข้อความใน proposal เรื่องข้อมูลไม่ออกนอก region
+- อัปเดตเอกสาร: ADR-2 ใน [01](01-architecture-decisions.md) (region, Nova Micro แทน Translate, เหตุผลที่ไม่ใช้ Cohere), ปิดข้อ 10 ใน [12](12-open-questions.md) (ตัด Bedrock Interface Endpoint), แก้ข้อความใน proposal เรื่องข้อมูลไม่ออกนอก region
 
 ### Dev ในเครื่อง
 - ใช้ Postgres ใน docker + **เรียก Bedrock ตัวจริง** ด้วย AWS CLI profile (SDK หา credentials จาก `~/.aws` เอง) — ไม่ต้องเปิด NAT/RDS
@@ -190,7 +193,7 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 | ค้นเอกสารด้วยคำไทยที่ไม่ตรงตัวอักษร (เช่น "รายได้เพิ่มขึ้น" หาเอกสารที่เขียน "เติบโต") | เจอเอกสารที่เกี่ยวข้อง |
 | ค้นรูปด้วยคำไทย ("แมวสีส้ม") | log มีคำแปล, เจอรูปที่เกี่ยวข้อง |
 | ค้นคำเดิมซ้ำ | ครั้งที่สองไม่เรียก Bedrock (ดู log) และเร็วขึ้นชัดเจน |
-| เลือกประเภท "เอกสาร" | ไม่เรียก Multimodal / Translate |
+| เลือกประเภท "เอกสาร" | ไม่เรียก Multimodal / Nova |
 | ตั้ง `BEDROCK_REGION` ผิด หรือไม่มี credentials | ได้ผล Keyword + ข้อความแจ้ง ไม่ error ทั้งหน้า |
 | asset PRIVATE ของคนอื่น / ถูกลบ / ยังไม่ READY | ไม่โผล่ในผล |
 | รัน backfill ซ้ำสองรอบ | รอบสองไม่เรียก Bedrock (ไม่มีอะไรค้าง) |
@@ -205,9 +208,9 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 |---|---:|
 | Titan Text V2 (เอกสาร + คำค้น) | ~$0.01–0.03 |
 | Titan Multimodal (รูป + คำค้น) | ~$0.06–0.10 |
-| Translate (คำค้นไทย, ก่อนหักผล cache) | ~$0.90 |
+| Nova Micro (แปลคำค้นไทย) | < $0.01 |
 | Data transfer ข้าม region | < $0.05 |
-| **รวม** | **< $1–2** |
+| **รวม** | **< $1** |
 
 ---
 
@@ -216,6 +219,7 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 - ไฟล์ใหม่ค้นแบบ semantic ได้ช้ากว่า keyword ไม่กี่วินาที–นาที
 - เก็บข้อความคำค้นใน cache (ไม่ผูก user, ลบเมื่อไม่ได้ใช้ 30 วัน)
 - คำแปลอาจคลาดกับศัพท์เฉพาะ — ยังดีกว่าส่งภาษาไทยเข้า Multimodal ตรงๆ
+- คำค้นไทยครั้งแรก (ยังไม่อยู่ใน cache) ช้า ~1 วินาที เพราะต้องแปลก่อน embed ฝั่งรูป
 - ค้นครั้งแรกหลัง Lambda cold start ช้ากว่าปกติ ~0.5–1s
 
 ## 7. ไม่ทำในรอบนี้
@@ -225,13 +229,18 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 - ย้ายไป Cohere Embed v4 (ต้องอัปเกรด paid plan + จ่ายผ่าน Marketplace)
 
 ## Checklist
-- [ ] แจ้งคนที่ 1: web Lambda ต้องได้สิทธิ์ Bedrock + Translate (`infra/web.ts`) และจะแก้ semantic ในหน้า `/assets`
+- [ ] แจ้งคนที่ 1: web Lambda ต้องได้สิทธิ์ Bedrock (Titan + Nova Micro) ใน `infra/web.ts` และจะแก้ semantic ในหน้า `/assets`
 - [x] ขั้น 1 migration `0006_query_embeddings.sql`
 - [x] ขั้น 2 `lib/embeddings.ts`
 - [x] ขั้น 3 embedding ใน worker
 - [x] ขั้น 4 backfill `--embeddings`
-- [ ] ขั้น 5 `lib/assets/semantic.ts`
-- [ ] ขั้น 6 แทน mock ในหน้า `/assets` + fallback
+- [x] ขั้น 5 `lib/assets/semantic.ts`
+- [x] ขั้น 6 แทน mock ในหน้า `/assets` + fallback
 - [ ] ขั้น 7 env, IAM, ADR-2, open question ข้อ 10
+- [ ] retry embedding อัตโนมัติบน AWS: cron Lambda (EventBridge ทุก 30–60 นาที) เรียก `backfillEmbedding` กับไฟล์ที่ยังขาด — ตอนนี้ retry ได้แค่รันสคริปต์ในเครื่อง
+- [ ] worker Lambda: timeout ~10 นาที, SQS visibility timeout > Lambda timeout (โควตา Bedrock บัญชีใหม่ ~1.5 chunk/วินาที)
+- [ ] กัน throttle ตอนอัปโหลดพร้อมกัน: ลด `CONCURRENCY` ใน `lib/processing/embed.ts` เหลือ 2–3 หรือลด SQS `maximumConcurrency` / ขอเพิ่มโควตา Bedrock (Service Quotas, `ap-south-1`)
+- [x] เปลี่ยนตัวแปลคำค้นจาก Amazon Translate (ติด `SubscriptionRequiredException`) เป็น Nova Micro
+- [ ] (ไม่เร่ง) Dashboard แสดงจำนวนไฟล์ที่ยังค้นแบบ semantic ไม่ได้ (embedding FAILED/ยังไม่มี)
 - [ ] ทดสอบตามข้อ 4 + เลือก `BEDROCK_REGION`
 - [ ] จูน `MAX_DISTANCE` ด้วยข้อมูลจริง

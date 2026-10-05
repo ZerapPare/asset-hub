@@ -1,5 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { TranslateClient, TranslateTextCommand } from "@aws-sdk/client-translate";
+import { BedrockRuntimeClient, ConverseCommand, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
 // ตัวกลางฝั่ง server: ส่งข้อความ/รูปไป AWS แล้วรับ vector กลับมา
 // เปลี่ยนโมเดลให้แก้ที่นี่จุดเดียว; vector เก่าต้องสร้างใหม่ด้วยโมเดลเดียวกัน
@@ -9,13 +8,17 @@ import { TranslateClient, TranslateTextCommand } from "@aws-sdk/client-translate
 export const TEXT_MODEL = "amazon.titan-embed-text-v2:0";
 /** แปลงรูปและคำค้นรูปเป็น vector ชุดเดียวกัน (คำค้นต้องเป็นอังกฤษ) */
 export const IMAGE_MODEL = "amazon.titan-embed-image-v1";
+/**
+ * แปลคำค้นไทยเป็นคำค้นอังกฤษสำหรับค้นรูป — Nova Micro (โมเดลของ Amazon: หัก credit ได้, ไม่ผ่าน Marketplace)
+ * เรียกผ่าน inference profile APAC (ไม่มี on-demand แบบ in-region ใน Mumbai/Singapore) → ประมวลผลในภูมิภาคเอเชียแปซิฟิก
+ */
+export const TRANSLATION_MODEL = "apac.amazon.nova-micro-v1:0";
 
 /** จำนวนตัวเลขใน vector ต้องตรงกับ VECTOR(1024) ในฐานข้อมูล */
 export const EMBEDDING_DIMENSIONS = 1024;
 
-// Titan ไม่มีที่ Singapore จึงเลือก Mumbai/Sydney ผ่าน .env; Translate ยังใช้ Singapore
+// Titan ไม่มีที่ Singapore จึงเลือก Mumbai/Sydney ผ่าน .env
 const BEDROCK_REGION = process.env.BEDROCK_REGION ?? "ap-south-1";
-const TRANSLATE_REGION = process.env.AWS_REGION ?? "ap-southeast-1";
 
 /** Error กลางของงาน AI เพื่อให้ worker/search แยกจาก error ประเภทอื่นได้ */
 export class EmbeddingError extends Error {}
@@ -24,29 +27,26 @@ export class EmbeddingError extends Error {}
 export type CallOptions = { signal?: AbortSignal };
 
 // Client จัดการ endpoint, credentials, ลายเซ็น AWS, connection และ retry ให้เรา
-function createClients() {
+function createClient() {
   // ให้เวลาเชื่อม 5 วินาทีและรอคำตอบ 30 วินาที; ผู้เรียกยกเลิกเร็วกว่านี้ได้
   const requestHandler = { connectionTimeout: 5_000, requestTimeout: 30_000 };
-  return {
-    // บัญชีใหม่มีโควตา Bedrock ต่อนาทีต่ำ → ThrottlingException เมื่อ worker ยิงหลาย chunk
-    // adaptive: SDK ชะลออัตราส่งเองเมื่อโดน throttle + retry หลายรอบ (ฝั่งค้นหาจำกัดเวลารวมด้วย AbortSignal)
-    bedrock: new BedrockRuntimeClient({ region: BEDROCK_REGION, requestHandler, retryMode: "adaptive", maxAttempts: 8 }),
-    translate: new TranslateClient({ region: TRANSLATE_REGION, requestHandler }),
-  };
+  // บัญชีใหม่มีโควตา Bedrock ต่อนาทีต่ำ → ThrottlingException เมื่อ worker ยิงหลาย chunk
+  // adaptive: SDK ชะลออัตราส่งเองเมื่อโดน throttle + retry หลายรอบ (ฝั่งค้นหาจำกัดเวลารวมด้วย AbortSignal)
+  return new BedrockRuntimeClient({ region: BEDROCK_REGION, requestHandler, retryMode: "adaptive", maxAttempts: 8 });
 }
 
 // เก็บ client ไว้ใช้ซ้ำ เพื่อไม่เปิด HTTPS connection ใหม่ทุกครั้งที่ Next.js hot reload
-const globalForEmbeddings = globalThis as unknown as { embeddingClients?: ReturnType<typeof createClients> };
+const globalForEmbeddings = globalThis as unknown as { bedrockClient?: BedrockRuntimeClient };
 
-const clients = globalForEmbeddings.embeddingClients ?? createClients();
+const bedrock = globalForEmbeddings.bedrockClient ?? createClient();
 
-if (process.env.NODE_ENV !== "production") globalForEmbeddings.embeddingClients = clients;
+if (process.env.NODE_ENV !== "production") globalForEmbeddings.bedrockClient = bedrock;
 
 /** ส่งข้อมูลไป Bedrock แล้วตรวจว่าคำตอบเป็น vector 1024 ค่า */
 async function invoke(modelId: string, body: unknown, { signal }: CallOptions): Promise<number[]> {
   let embedding: unknown;
   try {
-    const response = await clients.bedrock.send(
+    const response = await bedrock.send(
       new InvokeModelCommand({
         modelId,
         contentType: "application/json",
@@ -91,21 +91,41 @@ export function hasThai(text: string) {
   return THAI.test(text);
 }
 
+const TRANSLATION_PROMPT =
+  "You convert Thai search queries into short English search queries for an image search engine. " +
+  "Translate the meaning, keep proper nouns and words that are already English unchanged. " +
+  "Reply with only the English query on a single line: no quotes, no explanation.";
+/** คำตอบยาวสุด — คำค้นสั้น และ Titan Multimodal รับข้อความ ≤ 256 token */
+const TRANSLATION_MAX_TOKENS = 60;
+const TRANSLATION_MAX_LENGTH = 200;
+
 /**
  * แปลคำค้นรูปจากไทยเป็นอังกฤษ เพราะ Titan Multimodal รองรับคำค้นอังกฤษ
- * ระบุ "th" ตรงๆ เพื่อไม่ต้องเรียกบริการตรวจภาษาเพิ่ม
+ * temperature 0 + ตัดเหลือบรรทัดแรก กัน LLM ตอบเกิน; ผลลัพธ์ใช้เป็นแค่ข้อความ embed (ไม่แสดง/ไม่รันต่อ)
  */
 export async function translateToEnglish(text: string, { signal }: CallOptions = {}) {
+  let output: string | undefined;
   try {
-    const { TranslatedText } = await clients.translate.send(
-      new TranslateTextCommand({ Text: text, SourceLanguageCode: "th", TargetLanguageCode: "en" }),
+    const response = await bedrock.send(
+      new ConverseCommand({
+        modelId: TRANSLATION_MODEL,
+        system: [{ text: TRANSLATION_PROMPT }],
+        messages: [{ role: "user", content: [{ text }] }],
+        inferenceConfig: { maxTokens: TRANSLATION_MAX_TOKENS, temperature: 0 },
+      }),
       { abortSignal: signal },
     );
-    if (!TranslatedText) throw new Error("empty translation");
-    return TranslatedText;
+    output = response.output?.message?.content?.find((block) => block.text)?.text;
   } catch (error) {
-    throw new EmbeddingError("Translate th→en failed", { cause: error });
+    throw new EmbeddingError(`Bedrock ${TRANSLATION_MODEL} failed`, { cause: error });
   }
+  const query = (output ?? "")
+    .split(/\r?\n/)[0]
+    .replace(/^["'“”]+|["'“”.]+$/g, "")
+    .trim()
+    .slice(0, TRANSLATION_MAX_LENGTH);
+  if (!query) throw new EmbeddingError(`Bedrock ${TRANSLATION_MODEL} returned an empty translation`);
+  return query;
 }
 
 /** แปลง [0.1, 0.2] เป็น "[0.1,0.2]" เพื่อส่งให้คอลัมน์ pgvector */

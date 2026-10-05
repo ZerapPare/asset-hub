@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import {
+  AlertIcon,
   CheckIcon,
   CloseIcon,
   GridIcon,
@@ -14,7 +15,6 @@ import {
 import { CleanForm } from "@/components/search/clean-form";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { FilterSelect } from "@/components/search/filter-select";
-import { mockSemanticSearch } from "@/components/search/mock";
 import { OWNER_OPTIONS, UPLOADED_OPTIONS } from "@/components/search/options";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import type { FilterOption, SearchFilters, SearchMode, SearchResult, SearchView } from "@/components/search/types";
@@ -29,6 +29,7 @@ import {
   type AssetFilterOptions,
   type SearchSort,
 } from "@/lib/assets/search";
+import { semanticSearch, type SemanticSort } from "@/lib/assets/semantic";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const metadata: Metadata = { title: "Asset ทั้งหมด — AssetHub" };
@@ -152,23 +153,33 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
 
   // sort ผ่านการตรวจกับ sortOptions[kind] แล้ว
   const sort = params.sort || undefined;
-  const load = async (): Promise<{ results: SearchResult[]; timedOut: boolean }> => {
-    if (kind === "browse") {
-      const assets = await listAssets(user.user_id, { ...filterOptions, sort: sort as ListSort | undefined });
-      return { results: assets.map((asset) => ({ asset, tags: [], matchedIn: [] })), timedOut: false };
-    }
-    if (kind === "semantic") {
-      // TODO: Semantic Search จริง (pgvector + Bedrock)
-      return { results: mockSemanticSearch(q, params.type, filters), timedOut: false };
-    }
+  type Loaded = { results: SearchResult[]; timedOut: boolean; fellBack?: boolean };
+  const keywordSearch = async (): Promise<Loaded> => {
     try {
+      // sort ของ Semantic ("newest") เป็นค่าที่ Keyword รองรับด้วย
       return { results: await searchAssets(user.user_id, q, { ...filterOptions, sort: sort as SearchSort | undefined }), timedOut: false };
     } catch (error) {
       if (!(error instanceof SearchTimeoutError)) throw error;
       return { results: [], timedOut: true };
     }
   };
-  const [{ collections: collectionOptions, tags: tagOptions }, { results, timedOut }] = await Promise.all([
+  const load = async (): Promise<Loaded> => {
+    if (kind === "browse") {
+      const assets = await listAssets(user.user_id, { ...filterOptions, sort: sort as ListSort | undefined });
+      return { results: assets.map((asset) => ({ asset, tags: [], matchedIn: [] })), timedOut: false };
+    }
+    if (kind === "semantic") {
+      try {
+        return { results: await semanticSearch(user.user_id, q, { ...filterOptions, sort: sort as SemanticSort | undefined }), timedOut: false };
+      } catch (error) {
+        // Bedrock ล้ม/ช้า, SQL เกินเวลา หรือ DB ยังไม่มีตาราง cache → แสดงผล Keyword แทน ไม่ให้ทั้งหน้า error
+        console.error("[semantic] falling back to keyword search:", error);
+        return { ...(await keywordSearch()), fellBack: true };
+      }
+    }
+    return keywordSearch();
+  };
+  const [{ collections: collectionOptions, tags: tagOptions }, { results, timedOut, fellBack = false }] = await Promise.all([
     getSearchFilterOptions(user.user_id),
     load(),
   ]);
@@ -209,7 +220,7 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
               </h1>
               <p className="text-ink-muted">
                 พบ {count} ไฟล์{atLimit && ` (แสดง ${limit} รายการแรก ลองใช้ตัวกรองให้แคบลง)`} ·{" "}
-                {kind === "semantic"
+                {kind === "semantic" && !fellBack
                   ? "ค้นตามความหมาย แสดงเฉพาะไฟล์ที่ประมวลผลเสร็จแล้ว"
                   : "ค้นจากชื่อไฟล์ Tag Collection คำอธิบาย และเนื้อหาในเอกสาร"}
               </p>
@@ -293,6 +304,15 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
         </ul>
       )}
 
+      {fellBack && (
+        <div role="status" className="flex gap-3 rounded-2xl border border-info/25 bg-info-soft p-4 text-info">
+          <AlertIcon className="mt-0.5 size-5 shrink-0" />
+          <p>
+            <strong>ค้นตามความหมายไม่สำเร็จในตอนนี้</strong> — แสดงผลจากการค้นด้วยคำแทน ลองค้นแบบ Semantic อีกครั้งภายหลัง
+          </p>
+        </div>
+      )}
+
       {timedOut ? (
         <EmptyBlock
           title="ค้นหาใช้เวลานานเกินไป"
@@ -326,7 +346,11 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
         ) : (
           <EmptyBlock
             title={`ไม่พบไฟล์ที่ตรงกับ “${q}”`}
-            body="ลองตรวจการสะกด ใช้คำที่สั้นลง หรือค้นแบบ Semantic เพื่อหาจากความหมาย"
+            body={
+              fellBack
+                ? "ลองตรวจการสะกด ใช้คำที่สั้นลง หรือค้นแบบ Semantic อีกครั้งภายหลัง"
+                : "ลองตรวจการสะกด ใช้คำที่สั้นลง หรือค้นแบบ Semantic เพื่อหาจากความหมาย"
+            }
             action={
               kind === "keyword" && (
                 <Link
@@ -346,8 +370,8 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
           className={view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" : "space-y-3"}
         >
           {results.map((result) => (
-            // ไฮไลต์เฉพาะ Keyword (Semantic ไม่ได้ค้นจากคำที่ตรงกัน)
-            <SearchResultCard key={result.asset.id} result={result} query={kind === "keyword" ? q : ""} layout={view} />
+            // ไฮไลต์เฉพาะผล Keyword (Semantic ไม่ได้ค้นจากคำที่ตรงกัน)
+            <SearchResultCard key={result.asset.id} result={result} query={kind === "keyword" || fellBack ? q : ""} layout={view} />
           ))}
         </section>
       )}

@@ -10,6 +10,7 @@ import {
   hasThai,
   IMAGE_MODEL,
   TEXT_MODEL,
+  TRANSLATION_MODEL,
   translateToEnglish,
 } from "@/lib/embeddings";
 
@@ -36,7 +37,7 @@ async function timed<T>(label: string, fn: () => Promise<T>) {
 
 async function main() {
   // แสดง Region ก่อนทดสอบ ป้องกันสับสนว่ากำลังเรียก Mumbai หรือ Sydney
-  console.log(`BEDROCK_REGION=${process.env.BEDROCK_REGION ?? "ap-south-1 (default)"}  AWS_REGION=${process.env.AWS_REGION}`);
+  console.log(`BEDROCK_REGION=${process.env.BEDROCK_REGION ?? "ap-south-1 (default)"}`);
 
   console.log(`\n${TEXT_MODEL}`);
   // ครั้งแรกต้องเปิด connection (cold); ครั้งถัดไปใช้ connection เดิม (warm)
@@ -46,7 +47,7 @@ async function main() {
   // related ควรได้คะแนนสูงกว่า unrelated หาก text embedding ทำงานสมเหตุสมผล
   console.log(`  dims=${query.length}  similarity related=${cosine(query, related).toFixed(3)}  unrelated=${cosine(query, unrelated).toFixed(3)}`);
 
-  console.log(`\nTranslate (${process.env.AWS_REGION})`);
+  console.log(`\n${TRANSLATION_MODEL} (แปลคำค้นไทย → อังกฤษ)`);
   const thai = "แมวสีส้ม";
   let english = "orange cat";
   try {
