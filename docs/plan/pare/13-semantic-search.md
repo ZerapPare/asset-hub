@@ -242,6 +242,6 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 - [x] worker Lambda: timeout 10 นาที, SQS visibility timeout 15 นาที, DLQ หลังส่ง 3 รอบ (`infra/processing.ts`, ยังไม่ได้ deploy)
 - [x] กัน throttle ตอนอัปโหลดพร้อมกัน: SQS `maximumConcurrency: 2` (`infra/processing.ts`) — ถ้ายังโดน throttle ค่อยลด `CONCURRENCY` ใน `embed.ts` หรือขอเพิ่มโควตา Bedrock
 - [x] เปลี่ยนตัวแปลคำค้นจาก Amazon Translate (ติด `SubscriptionRequiredException`) เป็น Nova Micro
-- [ ] (ไม่เร่ง) Dashboard แสดงจำนวนไฟล์ที่ยังค้นแบบ semantic ไม่ได้ (embedding FAILED/ยังไม่มี)
+- [x] Dashboard แสดงจำนวนไฟล์ที่พร้อมค้นแบบ semantic (+ กำลังสร้าง/ล้ม/ไม่มีข้อความ)
 - [ ] ทดสอบตามข้อ 4 + เลือก `BEDROCK_REGION`
 - [ ] จูน `MAX_DISTANCE` ด้วยข้อมูลจริง
