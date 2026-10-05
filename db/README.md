@@ -10,6 +10,7 @@ PostgreSQL + pgvector (>= 0.5.0) + pg_trgm
 | `migrations/0002_indexes.sql` | index เพื่อความเร็ว (FK, dashboard, purge, keyword search, semantic search) |
 | `migrations/0003_search_indexes.sql` | index สำหรับค้น Tag และชื่อ Asset ด้วยคำสั้น |
 | `migrations/0005_thumbnail_process_type.sql` | เพิ่ม `THUMBNAIL` ใน `processing_workflows.process_type` |
+| `migrations/0006_query_embeddings.sql` | ตาราง cache embedding ของคำค้น Semantic Search |
 
 - รันตามลำดับเลขไฟล์ แต่ละไฟล์อยู่ใน transaction เดียว ถ้า error ให้ `ROLLBACK` แล้วแก้ก่อนรันใหม่
 - แก้ schema หลังจากแชร์ไปแล้ว → สร้างไฟล์ใหม่ต่อท้าย (`0003_...sql`) อย่าแก้ไฟล์เดิม
@@ -21,7 +22,7 @@ PostgreSQL + pgvector (>= 0.5.0) + pg_trgm
 
 ### ตรวจหลังรัน
 ```sql
--- ต้องได้ 12 ตาราง
+-- ต้องได้ 13 ตาราง
 SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -48,6 +49,7 @@ SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector', 'pg_trg
   1. ลบ S3 object (`s3_key`, `thumbnail_key`) **ก่อน**
   2. `DELETE FROM assets` → chunks, embeddings, tags, collection links, workflows ถูกลบตาม (`ON DELETE CASCADE`)
 - `audit_logs` ยังอยู่ (`asset_id` / `collection_id` เป็น NULL) จึงต้องเก็บชื่อไว้ใน `details`
+- job เดียวกันลบ cache คำค้น: `DELETE FROM query_embeddings WHERE last_used_at < NOW() - INTERVAL '30 days'`
 - ไม่ลบ user จริง (FK ที่อ้าง `users` เป็น NO ACTION)
 
 ## กฎที่ schema ไม่ได้บังคับ (แอปต้องทำเอง)

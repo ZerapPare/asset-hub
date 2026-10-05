@@ -19,6 +19,7 @@
 | [10-api-reference.md](10-api-reference.md) | รายการ API ทั้งหมดของคนที่ 1 |
 | [11-contract-with-person2.md](11-contract-with-person2.md) | ข้อตกลงระหว่างคนที่ 1 และคนที่ 2 |
 | [12-open-questions.md](12-open-questions.md) | คำถามที่ยังต้องตัดสินใจ |
+| [13-semantic-search.md](13-semantic-search.md) | Semantic Search — โมเดล (Titan + Translate), flow, ขั้นตอนลงมือทำ |
 
 ## วิธีใช้
 - ติ๊ก checklist `- [x]` ในแต่ละไฟล์เมื่อทำเสร็จ
