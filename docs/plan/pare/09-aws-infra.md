@@ -40,14 +40,14 @@
 ```
 sst.config.ts          ← import ทุกไฟล์ใน infra/ (ใช้ร่วมกัน)
 infra/
-  storage.ts           ← คนที่ 1: bucket + CORS + lifecycle (export bucket ให้ processing)
+  storage.ts           ← คนที่ 1: ชื่อ bucket ที่สร้างใน console (CORS + lifecycle ตั้งใน console — infra/README.md ขั้น 4b) ✅ โครงพร้อม รอใส่ชื่อ
   web.ts               ← คนที่ 1: Nextjs / API + link + secrets
   vpc.ts               ← คนที่ 2: ID ของ VPC/subnet/SG/NAT ที่สร้างใน console ✅
   database.ts          ← คนที่ 2: endpoint ของ RDS ที่สร้างใน console (รอสร้าง RDS)
   secrets.ts           ← ชื่อ secret (Google, JWT, DbPassword) — ค่าจริงตั้งด้วย sst secret set ✅
   processing.ts        ← คนที่ 2: SQS + DLQ + worker Lambda + cron + alarm ✅ (createProcessing(bucket))
 ```
-- VPC / RDS สร้างใน console (ขั้นตอนใน [infra/README.md](../../../infra/README.md)) — SST แค่อ่าน ID ไม่สร้าง/ไม่ลบ
+- VPC / RDS / S3 สร้างใน console (ขั้นตอนใน [infra/README.md](../../../infra/README.md)) — SST แค่อ่าน ID ไม่สร้าง/ไม่ลบ
 
 ## Dev ในเครื่อง (MinIO)
 - `docker compose up -d` → Postgres `localhost:5432` และ MinIO `localhost:9000` (console `9001`, user `dev` / `devdevdev`)
@@ -81,8 +81,8 @@ JWT_SECRET=
 ```
 
 ## Checklist
-- [ ] `lib/s3.ts` + `.env.example`
+- [x] `lib/s3.ts` + `.env.example`
 - [ ] script สร้าง bucket + CORS ใน MinIO
-- [ ] `infra/storage.ts`
+- [ ] สร้าง bucket ใน console + ใส่ชื่อใน `infra/storage.ts` (infra/README.md ขั้น 4b)
 - [ ] `infra/web.ts` + secrets
 - [ ] ตรวจ IAM policy ที่ SST สร้างให้ว่าจำกัดเฉพาะ `assets/*`

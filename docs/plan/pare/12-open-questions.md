@@ -7,5 +7,5 @@
 | 1 | ใช้ API Gateway แยก หรือใช้ Next.js Route Handlers | Route Handlers | ทีม / อาจารย์ | [01](01-architecture-decisions.md) |
 | 4 | เปลี่ยน asset เป็น PRIVATE ขณะที่อยู่ใน collection ให้ทำอย่างไร | ถอดออกจากทุก collection อัตโนมัติ โดยถามยืนยันก่อน | ทีม | [05](05-edit-delete.md) |
 | 5 | FR เขียนว่า ORGANIZATION "ทุกคนเห็น ค้นหา และ**อัปโหลด**ได้" น่าจะหมายถึงดาวน์โหลด | แก้เป็น "ดาวน์โหลด" | ทีม | FR |
-| 6 | ชนิดไฟล์ที่รองรับ และขนาดสูงสุด | PDF, JPG, PNG, WEBP / 20 MB | คนที่ 2 | [03](03-upload.md) |
-| 9 | Keyword search ใช้ endpoint เดียวกับ Library ไหม | ใช้ร่วมกัน (`GET /api/assets?q=`) | คนที่ 2 | [08](08-filter-sort.md) |
+
+ตัดสินใจแล้ว: #6 ชนิดไฟล์ → [03](03-upload.md), #9 Keyword search → [08](08-filter-sort.md)

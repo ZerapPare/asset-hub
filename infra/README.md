@@ -5,10 +5,11 @@
 | `vpc.ts` | **AWS Console (มือ)** | ID ของ VPC / subnet / security group / NAT instance — ไม่ใช่ความลับ commit ได้ |
 | `secrets.ts` | SST | ประกาศชื่อ secret เท่านั้น ค่าจริงตั้งด้วย `sst secret set` ไม่อยู่ใน repo |
 | `database.ts` | **AWS Console (มือ)** | endpoint ของ RDS — password อยู่ใน secret `DbPassword` |
+| `storage.ts` | **AWS Console (มือ, คนที่ 1)** | ชื่อ S3 bucket (ขั้น 4b) |
 | `processing.ts` | SST | SQS + DLQ + worker Lambda + cron ซ่อมงานค้าง + CloudWatch alarm (ขั้น 8) |
 | `assert-filled.ts` | — | หยุด deploy ถ้ายังมีช่อง `REPLACE_ME` |
 
-`../sst.config.ts` import ทุกไฟล์ในนี้ — ไฟล์ของคนที่ 1 (`storage.ts`, `web.ts`) ยังไม่มี
+`../sst.config.ts` import ทุกไฟล์ในนี้ — `web.ts` ของคนที่ 1 ยังไม่มี
 
 ## 1. สร้าง VPC ใน Console (region `ap-southeast-1`)
 
@@ -81,6 +82,33 @@ RDS → Subnet groups → **Create DB subnet group**
 
 > ~$14/เดือน (instance + 20 GB) หักจาก credit — **Stop ได้แค่ 7 วัน** แล้ว AWS เปิดให้เองอัตโนมัติ
 
+## 4b. S3 bucket (คนที่ 1)
+
+S3 → **Create bucket** (region **`ap-southeast-1`** — ต้องตรงกับ Lambda เพราะ worker เข้า S3 ผ่าน gateway endpoint ซึ่งใช้ได้แค่ใน region เดียวกัน)
+
+| ช่อง | ค่า | เหตุผล |
+|---|---|---|
+| Bucket type | General purpose | |
+| Bucket name | เช่น `assethub-dev-<account id>` | ชื่อต้องไม่ซ้ำทั้งโลก |
+| Object Ownership | ACLs disabled | สิทธิ์ทั้งหมดผ่าน IAM |
+| Block Public Access | **เปิดทั้งหมด** | ทุกการเข้าถึงผ่าน presigned URL (แผน 09) |
+| Versioning | Disable | ไม่ต้องเก็บไฟล์เวอร์ชันเก่า (ค่าเก็บเพิ่ม) |
+| Default encryption | SSE-S3 | ฟรี |
+
+**หลังสร้างเสร็จ:**
+- **Permissions → CORS:** browser อัปโหลดตรงเข้า S3 ด้วย presigned POST และเปิดไฟล์ด้วย presigned GET
+  ```json
+  [{
+    "AllowedOrigins": ["https://<cloudfront-domain>"],
+    "AllowedMethods": ["GET", "POST"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3000
+  }]
+  ```
+  โดเมน CloudFront ได้หลัง deploy ครั้งแรก (output `sst deploy`) — ก่อนหน้านั้นใส่ `http://localhost:3000` ไว้ก่อนได้ (dev ในเครื่องใช้ MinIO อยู่แล้ว)
+- **Management → Lifecycle rule:** Delete expired object delete markers or incomplete multipart uploads → incomplete multipart uploads หลัง **1 วัน**
+- ใส่ชื่อ bucket ใน `storage.ts` (ARN คำนวณให้เอง) → `processing.ts` และ `web.ts` ใช้ `bucket.name` / `bucket.arn`
+
 ## 5. ใส่ ID ลง `vpc.ts`
 
 | ช่องใน `vpc.ts` | หาได้ที่ |
@@ -144,12 +172,13 @@ cron ทุก 30 นาที (lib/processing/maintenance.ts)
 **แจ้งเตือนทางอีเมล:** ตั้ง `ALARM_EMAIL` ตอน deploy (เช่นในไฟล์ `.env` ที่ SST อ่าน) แล้ว**กดยืนยันในอีเมลจาก AWS** ที่ส่งมาหลัง deploy ครั้งแรก — ไม่ตั้ง = มี alarm ใน CloudWatch console แต่ไม่ส่งอีเมล
 
 **ผูกกับไฟล์ของคนที่ 1** (`sst.config.ts` มีบรรทัด comment รอไว้):
-- `storage.ts` export `bucket` → `createProcessing({ name: bucket.name, arn: bucket.arn })`
+- `storage.ts` export `bucket` (ชื่อจาก console) → `createProcessing(bucket)` ✅ ต่อใน `sst.config.ts` แล้ว
 - `web.ts`: env `PROCESSING_QUEUE_URL = queue.url` + `sqs:SendMessage` บน `queue.arn` + `bedrockPermissions({ translation: true })` + VPC เดียวกัน
 
 ## 9. ก่อน deploy ครั้งแรก
 - [x] ตั้ง AWS Budgets (Billing → Budgets) เตือนที่ 50% / 80% ของ credit
 - [ ] สร้าง RDS (ขั้น 4) + รัน migration `0001`–`0006` (ขั้น 7)
+- [ ] สร้าง S3 bucket (ขั้น 4b, คนที่ 1) + ใส่ชื่อใน `storage.ts`
 - [ ] ตั้ง secret ครบ 4 ตัว (ขั้น 6)
 - [ ] build บน **Linux** (GitHub Actions / WSL) — `sharp`, `@napi-rs/canvas` เป็น native module ถ้า build บน Windows จะได้ binary ผิดแพลตฟอร์ม
 - [ ] `npx sst deploy --stage dev` แล้วทดสอบ: อัปโหลด → READY → ค้นแบบ Semantic → ลองไฟล์เสียแล้วดูว่าไป DLQ + alarm ทำงาน

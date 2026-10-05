@@ -50,14 +50,15 @@
 - **ใช้ค่าจาก HeadObject ไม่ใช้ค่าจาก client:** Dashboard ของคนที่ 2 นับจาก metadata นี้ จึงต้องถูกต้อง
 - **ไฟล์ที่ค้างสถานะ UPLOADING:** ถ้าผู้ใช้ปิดหน้าไปกลางคัน asset จะค้างสถานะนี้ ให้ทำ job ลบแถวที่ UPLOADING นานเกิน 1 ชม. หรือไม่แสดงสถานะนี้ใน Library เลยก็พอ
 
-## ชนิดไฟล์ที่รองรับ (ร่าง รอตกลงกับคนที่ 2 เพราะเขาต้องประมวลผลได้)
+## ชนิดไฟล์ที่รองรับ (ตกลงแล้ว — ค่าจริงอยู่ที่ `lib/upload/rules.ts` ฝั่งประมวลผลรองรับครบ)
 
 | file_type | mime_type | นามสกุล |
 |---|---|---|
 | DOCUMENT | `application/pdf` | pdf |
 | IMAGE | `image/jpeg`, `image/png`, `image/webp` | jpg, jpeg, png, webp |
 
-- `MAX_FILE_SIZE` เสนอเริ่มที่ 20 MB ตั้งเป็น config
+- `MAX_FILE_SIZE` = 20 MB (`lib/upload/rules.ts`)
+- รูปทุกชนิด (รวม WEBP) ถูกแปลงด้วย `sharp` ก่อนส่ง Titan Multimodal (`makeEmbeddingImage` ใน `lib/processing/thumbnail.ts`)
 
 ## อัปโหลดหลายไฟล์
 - ฝั่ง frontend ขอ upload-url ทีละไฟล์ แล้วอัปโหลดพร้อมกัน จำกัดทีละ 3–4 ไฟล์
@@ -69,7 +70,7 @@
 - [x] allowlist ของ mime type + `MAX_FILE_SIZE` — `lib/upload/rules.ts` (ใช้ร่วมหน้าเว็บ/server)
 - [x] `POST /api/assets/upload-url`
 - [x] `POST /api/assets/:id/complete` + HeadObject
-- [ ] ส่งข้อความเข้า SQS — ตอนนี้ `enqueueProcessing()` แค่ log (`lib/processing/queue.ts`)
+- [x] ส่งข้อความเข้า SQS — `enqueueProcessing()` (`lib/processing/queue.ts`, คนที่ 2): มี `PROCESSING_QUEUE_URL` = ส่งเข้า SQS, ไม่มี (dev) = ประมวลผลใน server — เหลือแค่ตั้ง env + สิทธิ์ใน `infra/web.ts`
 - [x] บันทึก audit log `UPLOAD`
 - [x] `PATCH /api/assets/:id` — ชื่อ, คำอธิบาย, visibility, Tag, Collection ในครั้งเดียว (`lib/assets/details.ts`)
 - [x] หน้าต่าง Upload (`?upload=1`): ลากวาง, หลายไฟล์ (พร้อมกัน 3), progress, visibility, Tag, Collection

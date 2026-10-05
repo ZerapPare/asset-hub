@@ -2,7 +2,7 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
 // ไฟล์กลางของ SST — ใช้ร่วมกันสองคน แต่ละคนเขียน resource ของตัวเองใน infra/ แล้ว import ที่นี่
-// VPC / RDS สร้างใน AWS Console (infra/vpc.ts, infra/database.ts เก็บแค่ ID/endpoint) — SST ไม่สร้าง/ลบให้
+// VPC / RDS / S3 สร้างใน AWS Console (infra/vpc.ts, database.ts, storage.ts เก็บแค่ ID/endpoint/ชื่อ) — SST ไม่สร้าง/ลบให้
 export default $config({
   app(input) {
     return {
@@ -18,16 +18,17 @@ export default $config({
   async run() {
     const { vpc } = await import("./infra/vpc"); // คนที่ 2 (console)
     await import("./infra/secrets");
-    // ยังมี REPLACE_ME (ยังไม่ได้สร้าง RDS) → deploy หยุดพร้อมบอกช่องที่ขาด
+    // ยังมี REPLACE_ME (ยังไม่ได้สร้าง RDS / S3) → deploy หยุดพร้อมบอกช่องที่ขาด
     const { database } = await import("./infra/database"); // คนที่ 2 (console)
-    // TODO: storage.ts (คนที่ 1) แล้วเปิดสองบรรทัดนี้ — processing ต้องใช้ bucket
-    // const { bucket } = await import("./infra/storage");
-    // const { queue } = (await import("./infra/processing")).createProcessing({ name: bucket.name, arn: bucket.arn });
-    // TODO: web.ts (คนที่ 1) — env PROCESSING_QUEUE_URL = queue.url + sqs:SendMessage, bedrockPermissions({ translation: true })
+    const { bucket } = await import("./infra/storage"); // คนที่ 1 (console)
+    const { queue } = (await import("./infra/processing")).createProcessing(bucket);
+    // TODO: web.ts (คนที่ 1) — createWeb({ bucket, queue }): env PROCESSING_QUEUE_URL = queue.url + sqs:SendMessage, bedrockPermissions({ translation: true })
 
     return {
       vpc: vpc.id,
       databaseHost: database.host,
+      bucket: bucket.name,
+      processingQueue: queue.url,
     };
   },
 });
