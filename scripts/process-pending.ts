@@ -2,10 +2,13 @@
 //   npm run process:pending                          ทุกไฟล์ที่ค้าง
 //   npm run process:pending -- <assetId>…            เฉพาะไฟล์ที่ระบุ
 //   npm run process:pending -- --pdf-thumbnails      ทำ thumbnail หน้าแรกให้ PDF ที่ READY แต่ยังไม่มี
+//   npm run process:pending -- --embeddings          ทำ embedding (Semantic Search) ให้ไฟล์ที่ READY แต่ยังไม่มี/ไม่ครบ
+//                                                    (ต้องมี AWS credentials ในเครื่อง — เรียก Bedrock จริง)
 // ใช้ในเครื่องเท่านั้น — บน AWS ใช้ SQS
 import { sql } from "@/lib/db";
 import type { DbFileType } from "@/lib/schema";
-import { backfillPdfThumbnail, processAsset } from "@/lib/processing/worker";
+import { IMAGE_MODEL, TEXT_MODEL } from "@/lib/embeddings";
+import { backfillEmbedding, backfillPdfThumbnail, processAsset } from "@/lib/processing/worker";
 import { bucket } from "@/lib/s3";
 
 type PendingRow = {
@@ -20,7 +23,23 @@ type PendingRow = {
 async function main() {
   const args = process.argv.slice(2);
   const pdfThumbnails = args.includes("--pdf-thumbnails");
+  const embeddings = args.includes("--embeddings");
   const ids = args.filter((a) => !a.startsWith("--"));
+  // เอกสาร: มี chunk ที่ยังไม่มี embedding ของโมเดลปัจจุบัน / รูป: ยังไม่มี embedding ของโมเดลปัจจุบัน
+  const missingEmbedding = sql`(
+    (file_type = 'DOCUMENT' AND EXISTS (
+      SELECT 1 FROM document_chunks dc
+      WHERE dc.asset_id = assets.asset_id
+        AND NOT EXISTS (
+          SELECT 1 FROM document_embeddings de
+          WHERE de.chunk_id = dc.chunk_id AND de.embedding_model = ${TEXT_MODEL}
+        )
+    ))
+    OR (file_type = 'IMAGE' AND NOT EXISTS (
+      SELECT 1 FROM image_embeddings ie
+      WHERE ie.asset_id = assets.asset_id AND ie.embedding_model = ${IMAGE_MODEL}
+    ))
+  )`;
   const rows = await sql<PendingRow[]>`
     SELECT asset_id, display_name, s3_key, mime_type, file_type, file_size::float8 AS file_size
     FROM assets
@@ -28,12 +47,15 @@ async function main() {
       ${
         pdfThumbnails
           ? sql`AND processing_status = 'READY' AND file_type = 'DOCUMENT' AND thumbnail_key IS NULL`
-          : sql`AND processing_status = 'PROCESSING'`
+          : embeddings
+            ? sql`AND processing_status = 'READY' AND ${missingEmbedding}`
+            : sql`AND processing_status = 'PROCESSING'`
       }
       ${ids.length ? sql`AND asset_id::text IN ${sql(ids)}` : sql``}
     ORDER BY created_at
   `;
-  console.log(`พบ ${rows.length} ไฟล์${pdfThumbnails ? " PDF ที่ยังไม่มี thumbnail" : "ที่รอประมวลผล"}`);
+  const label = pdfThumbnails ? " PDF ที่ยังไม่มี thumbnail" : embeddings ? "ที่ยังไม่มี embedding" : "ที่รอประมวลผล";
+  console.log(`พบ ${rows.length} ไฟล์${label}`);
 
   const summary = { READY: 0, SKIPPED: 0, FAILED: 0 };
   // ทีละไฟล์ ไม่ให้ไฟล์ใหญ่หลายไฟล์กินหน่วยความจำพร้อมกัน
@@ -42,15 +64,17 @@ async function main() {
     try {
       const result = pdfThumbnails
         ? await backfillPdfThumbnail(row.asset_id)
-        : await processAsset({
-            version: 1,
-            assetId: row.asset_id,
-            s3Key: row.s3_key,
-            bucket: bucket(),
-            mimeType: row.mime_type,
-            fileType: row.file_type,
-            fileSize: row.file_size,
-          });
+        : embeddings
+          ? await backfillEmbedding(row.asset_id)
+          : await processAsset({
+              version: 1,
+              assetId: row.asset_id,
+              s3Key: row.s3_key,
+              bucket: bucket(),
+              mimeType: row.mime_type,
+              fileType: row.file_type,
+              fileSize: row.file_size,
+            });
       summary[result]++;
       console.log(`${result.padEnd(7)} ${row.display_name} (${Date.now() - started} ms)`);
     } catch (error) {

@@ -1,11 +1,12 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import type { TransactionSql } from "postgres";
 import { sql } from "@/lib/db";
 import { bucket, s3 } from "@/lib/s3";
 import type { DbFileType, ProcessType } from "@/lib/schema";
+import { embedAssetImage, embedDocument } from "./embed";
 import { chunkText, closePdf, extractText, openPdf, renderFirstPage, type PdfDocument } from "./pdf";
 import type { ProcessingMessage } from "./queue";
 import { makeThumbnail, type Thumbnail } from "./thumbnail";
+import { completeWorkflow, failWorkflow, startWorkflow } from "./workflows";
 
 // แบ่ง insert ไม่ให้เกินขีดจำกัด parameter ของ Postgres
 const CHUNK_INSERT_BATCH = 1000;
@@ -40,8 +41,9 @@ export async function processAsset(
   const processType: ProcessType = asset.file_type === "DOCUMENT" ? "TEXT_EXTRACTION" : "THUMBNAIL";
   const processId = await startWorkflow(assetId, processType);
 
+  let data: Uint8Array;
   try {
-    const data = await download(asset.s3_key);
+    data = await download(asset.s3_key);
     const ready =
       asset.file_type === "DOCUMENT"
         ? await processDocument(assetId, processId, data)
@@ -52,7 +54,6 @@ export async function processAsset(
       await failWorkflow(processId, "ไฟล์ถูกลบระหว่างประมวลผล");
       return "SKIPPED";
     }
-    return "READY";
   } catch (error) {
     const reason = error instanceof ProcessingError ? error.message : "ประมวลผลไม่สำเร็จ กรุณาลองอัปโหลดใหม่";
     console.error(`[processing] ${assetId} ${processType} failed:`, error);
@@ -65,6 +66,13 @@ export async function processAsset(
     }
     throw error;
   }
+
+  // embedding ทำหลัง READY (ผู้ใช้เปิดไฟล์ได้ทันที) นอก try ด้านบน — ไม่ให้ error ของมันไปทับ workflow ที่สำเร็จแล้ว
+  // ไม่ throw: ล้มเหลวแค่บันทึก workflow ไฟล์ยัง READY → retry ด้วย npm run process:pending -- --embeddings
+  // (SQS retry ช่วยไม่ได้ เพราะรอบใหม่จะ SKIPPED เมื่อไม่ใช่ PROCESSING แล้ว)
+  if (asset.file_type === "DOCUMENT") await embedDocument(assetId);
+  else await embedAssetImage(assetId, data);
+  return "READY";
 }
 
 /**
@@ -90,11 +98,29 @@ export async function backfillPdfThumbnail(assetId: string): Promise<"READY" | "
       RETURNING 1
     `;
     if (!row) return false;
-    await completeWorkflow(tx, step.processId);
+    await completeWorkflow(step.processId, tx);
     return true;
   });
   if (!saved) await discardThumbnail(assetId, step.processId);
   return saved ? "READY" : "SKIPPED";
+}
+
+/**
+ * ทำ embedding ให้ Asset ที่ READY แล้วแต่ยังไม่มี (ไฟล์ก่อนมีฟีเจอร์นี้, ครั้งก่อนล้มเหลว, เปลี่ยนโมเดล)
+ * ไม่เปลี่ยน processing_status
+ */
+export async function backfillEmbedding(assetId: string): Promise<"READY" | "SKIPPED" | "FAILED"> {
+  const [asset] = await sql<AssetRow[]>`
+    SELECT file_type, s3_key FROM assets
+    WHERE asset_id = ${assetId} AND deleted_at IS NULL AND processing_status = 'READY'
+  `;
+  if (!asset) return "SKIPPED";
+
+  const result =
+    asset.file_type === "DOCUMENT"
+      ? await embedDocument(assetId)
+      : await embedAssetImage(assetId, await download(asset.s3_key));
+  return result === "SUCCESS" ? "READY" : result;
 }
 
 async function download(key: string) {
@@ -186,11 +212,11 @@ async function finishDocument(assetId: string, processId: string, chunks: string
     // thumbnail ล้มเหลว = คง thumbnail_key เดิมไว้ (ถ้ามีจากรอบก่อน)
     if (thumb) {
       await tx`UPDATE assets SET processing_status = 'READY', thumbnail_key = ${thumbnailKey(assetId)} WHERE asset_id = ${assetId}`;
-      await completeWorkflow(tx, thumb.processId);
+      await completeWorkflow(thumb.processId, tx);
     } else {
       await tx`UPDATE assets SET processing_status = 'READY' WHERE asset_id = ${assetId}`;
     }
-    await completeWorkflow(tx, processId);
+    await completeWorkflow(processId, tx);
     return true;
   });
 }
@@ -209,7 +235,7 @@ async function finishImage(assetId: string, processId: string, thumbnail: Thumbn
       RETURNING 1
     `;
     if (!asset) return false;
-    await completeWorkflow(tx, processId);
+    await completeWorkflow(processId, tx);
     return true;
   });
 
@@ -237,29 +263,4 @@ async function putThumbnail(assetId: string, thumbnail: Thumbnail) {
 async function discardThumbnail(assetId: string, processId: string) {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket(), Key: thumbnailKey(assetId) })).catch(() => {});
   await failWorkflow(processId, "ไฟล์ถูกลบระหว่างประมวลผล");
-}
-
-async function startWorkflow(assetId: string, processType: ProcessType) {
-  const [{ process_id }] = await sql<{ process_id: string }[]>`
-    INSERT INTO processing_workflows (asset_id, process_type, status, attempt_no, started_at)
-    SELECT ${assetId}, ${processType}, 'PROCESSING', COALESCE(MAX(attempt_no), 0) + 1, NOW()
-    FROM processing_workflows
-    WHERE asset_id = ${assetId} AND process_type = ${processType}
-    RETURNING process_id
-  `;
-  return process_id;
-}
-
-async function completeWorkflow(tx: TransactionSql, processId: string) {
-  await tx`
-    UPDATE processing_workflows SET status = 'SUCCESS', error_message = NULL, completed_at = NOW()
-    WHERE process_id = ${processId}
-  `;
-}
-
-async function failWorkflow(processId: string, reason: string) {
-  await sql`
-    UPDATE processing_workflows SET status = 'FAILED', error_message = ${reason}, completed_at = NOW()
-    WHERE process_id = ${processId}
-  `;
 }

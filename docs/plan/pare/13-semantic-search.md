@@ -227,9 +227,9 @@ semanticSearch(userId, q, options): Promise<SearchResult[]>
 ## Checklist
 - [ ] แจ้งคนที่ 1: web Lambda ต้องได้สิทธิ์ Bedrock + Translate (`infra/web.ts`) และจะแก้ semantic ในหน้า `/assets`
 - [x] ขั้น 1 migration `0006_query_embeddings.sql`
-- [ ] ขั้น 2 `lib/embeddings.ts`
-- [ ] ขั้น 3 embedding ใน worker
-- [ ] ขั้น 4 backfill `--embeddings`
+- [x] ขั้น 2 `lib/embeddings.ts`
+- [x] ขั้น 3 embedding ใน worker
+- [x] ขั้น 4 backfill `--embeddings`
 - [ ] ขั้น 5 `lib/assets/semantic.ts`
 - [ ] ขั้น 6 แทน mock ในหน้า `/assets` + fallback
 - [ ] ขั้น 7 env, IAM, ADR-2, open question ข้อ 10
