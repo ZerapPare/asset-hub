@@ -4,7 +4,7 @@ import { assertFilled } from "./assert-filled";
 // ต้องอยู่ region ap-southeast-1 เดียวกับ Lambda: worker เข้า S3 ผ่าน gateway endpoint ของ VPC ซึ่งใช้ได้แค่ใน region เดียวกัน
 // ชื่อ bucket ไม่ใช่ความลับ commit ได้
 
-const name = "REPLACE_ME"; // S3 → Buckets → ชื่อ bucket เช่น assethub-dev-<account id>
+const name = "assethub-files-cskmitl"; // S3 → Buckets → ชื่อ bucket
 
 export const bucket = {
   name,

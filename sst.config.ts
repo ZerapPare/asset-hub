@@ -22,9 +22,11 @@ export default $config({
     const { database } = await import("./infra/database"); // คนที่ 2 (console)
     const { bucket } = await import("./infra/storage"); // คนที่ 1 (console)
     const { queue } = (await import("./infra/processing")).createProcessing(bucket);
-    // TODO: web.ts (คนที่ 1) — createWeb({ bucket, queue }): env PROCESSING_QUEUE_URL = queue.url + sqs:SendMessage, bedrockPermissions({ translation: true })
+    const { createWeb } = await import("./infra/web"); // คนที่ 1
+    const web = createWeb({ bucket, queue });
 
     return {
+      url: web.url,
       vpc: vpc.id,
       databaseHost: database.host,
       bucket: bucket.name,
