@@ -148,7 +148,7 @@ cron ทุก 30 นาที (lib/processing/maintenance.ts)
 - `web.ts`: env `PROCESSING_QUEUE_URL = queue.url` + `sqs:SendMessage` บน `queue.arn` + `bedrockPermissions({ translation: true })` + VPC เดียวกัน
 
 ## 9. ก่อน deploy ครั้งแรก
-- [ ] ตั้ง AWS Budgets (Billing → Budgets) เตือนที่ 50% / 80% ของ credit
+- [x] ตั้ง AWS Budgets (Billing → Budgets) เตือนที่ 50% / 80% ของ credit
 - [ ] สร้าง RDS (ขั้น 4) + รัน migration `0001`–`0006` (ขั้น 7)
 - [ ] ตั้ง secret ครบ 4 ตัว (ขั้น 6)
 - [ ] build บน **Linux** (GitHub Actions / WSL) — `sharp`, `@napi-rs/canvas` เป็น native module ถ้า build บน Windows จะได้ binary ผิดแพลตฟอร์ม
