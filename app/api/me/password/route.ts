@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { hashPassword, validateNewPassword, verifyPassword } from "@/lib/auth/password";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/auth/session";
 import { findUserById, setPassword } from "@/lib/auth/users";
+import { readJson } from "@/lib/http";
 
 function error(status: number, code: string, message?: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -12,10 +13,7 @@ export async function PUT(request: NextRequest) {
   const current = await getCurrentUser();
   if (!current) return error(401, "UNAUTHORIZED");
 
-  const { newPassword, currentPassword } = (await request.json().catch(() => ({}))) as {
-    newPassword?: unknown;
-    currentPassword?: unknown;
-  };
+  const { newPassword, currentPassword } = await readJson<{ newPassword: unknown; currentPassword: unknown }>(request);
   const invalid = validateNewPassword(newPassword);
   if (invalid) return error(400, "INVALID_PASSWORD", invalid);
 

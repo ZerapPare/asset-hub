@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense } from "react";
-import { BellIcon, UploadIcon } from "@/components/icons";
+import { UploadIcon } from "@/components/icons";
 import { Avatar } from "@/components/ui/avatar";
 import { UploadLink } from "@/components/upload/upload-link";
 import { SidebarToggle } from "./sidebar-state";
@@ -22,14 +22,6 @@ export function Topbar({ userName, avatarUrl }: { userName: string; avatarUrl: s
           <UploadIcon className="size-5" />
           <span className="hidden sm:inline">อัปโหลด</span>
         </UploadLink>
-
-        <button
-          type="button"
-          aria-label="การแจ้งเตือน"
-          className="hidden size-12 shrink-0 items-center justify-center rounded-xl border border-line text-ink-muted hover:text-ink sm:flex"
-        >
-          <BellIcon className="size-5" />
-        </button>
 
         <Link href="/settings" aria-label="ตั้งค่าบัญชี" className="hidden shrink-0 sm:block">
           <Avatar name={userName} src={avatarUrl} size="lg" />

@@ -177,11 +177,12 @@ cron ทุก 30 นาที (lib/processing/maintenance.ts)
 
 ## 9. ก่อน deploy ครั้งแรก
 - [x] ตั้ง AWS Budgets (Billing → Budgets) เตือนที่ 50% / 80% ของ credit
-- [ ] สร้าง RDS (ขั้น 4) + รัน migration `0001`–`0006` (ขั้น 7)
-- [ ] สร้าง S3 bucket (ขั้น 4b, คนที่ 1) + ใส่ชื่อใน `storage.ts`
-- [ ] ตั้ง secret ครบ 4 ตัว (ขั้น 6)
-- [ ] build บน **Linux** (GitHub Actions / WSL) — `sharp`, `@napi-rs/canvas` เป็น native module ถ้า build บน Windows จะได้ binary ผิดแพลตฟอร์ม
-- [ ] `npx sst deploy --stage dev` แล้วทดสอบ: อัปโหลด → READY → ค้นแบบ Semantic → ลองไฟล์เสียแล้วดูว่าไป DLQ + alarm ทำงาน
+- [x] สร้าง RDS (ขั้น 4) + รัน migration `0001`–`0006` (ขั้น 7)
+- [x] สร้าง S3 bucket (ขั้น 4b, คนที่ 1) + ใส่ชื่อใน `storage.ts`
+- [x] ตั้ง secret ครบ 4 ตัว (ขั้น 6)
+- [x] build บน **Linux** (GitHub Actions / WSL) — `sharp`, `@napi-rs/canvas` เป็น native module ถ้า build บน Windows จะได้ binary ผิดแพลตฟอร์ม
+- [x] `npx sst deploy --stage dev` แล้วทดสอบ: อัปโหลด → READY → ค้นแบบ Semantic → ลองไฟล์เสียแล้วดูว่าไป DLQ + alarm ทำงาน
+- [x] หลัง deploy ครั้งแรก: เพิ่ม URL CloudFront (`d3a1ivk0zkc6oy.cloudfront.net`) ใน S3 CORS (`AllowedOrigins` ใส่แค่ `https://<domain>` ไม่มี path) + Google Console (origin และ `/api/auth/google/callback`) + `GOOGLE_REDIRECT_URI` ใน `web.ts`
 
 ## 10. Deploy
 
@@ -195,5 +196,6 @@ cron ทุก 30 นาที (lib/processing/maintenance.ts)
 **ตั้งครั้งเดียว (ทำแล้ว):** GitHub เข้า AWS ด้วย OIDC ไม่เก็บ access key
 - IAM → Identity providers: `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`)
 - IAM role `assethub-github-deploy` (Web identity, รับเฉพาะ `ZerapPare/asset-hub` branch `main`) + `AdministratorAccess`
+  - ⚠️ GitHub ส่ง `sub` แบบมีเลข ID: trust policy ต้องเป็น `"token.actions.githubusercontent.com:sub": "repo:ZerapPare@159797673/asset-hub@1384916227:ref:refs/heads/main"` — แบบที่ Console สร้างให้ (`repo:ZerapPare/asset-hub:...`) จะได้ `Not authorized to perform sts:AssumeRoleWithWebIdentity` (ดูค่าจริงได้ใน CloudTrail → event `AssumeRoleWithWebIdentity`)
 - GitHub → Settings → Secrets and variables → Actions → Variables: `AWS_DEPLOY_ROLE_ARN` = ARN ของ role (ไม่บังคับ: `ALARM_EMAIL`)
 - secret ของแอปอยู่ใน `sst secret` แล้ว ไม่ต้องใส่ใน GitHub

@@ -2,16 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifyPassword } from "@/lib/auth/password";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "@/lib/auth/session";
 import { findUserByEmail } from "@/lib/auth/users";
+import { readJson } from "@/lib/http";
 
 function error(status: number, code: string) {
   return NextResponse.json({ error: { code } }, { status });
 }
 
 export async function POST(request: NextRequest) {
-  const { email, password } = (await request.json().catch(() => ({}))) as {
-    email?: unknown;
-    password?: unknown;
-  };
+  const { email, password } = await readJson<{ email: unknown; password: unknown }>(request);
   if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
     return error(400, "INVALID_INPUT");
   }

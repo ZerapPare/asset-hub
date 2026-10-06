@@ -18,8 +18,10 @@ export function errorResponse(error: unknown) {
   return NextResponse.json({ error: { code: "INTERNAL", message: "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง" } }, { status: 500 });
 }
 
+// body ที่ไม่ใช่ object (null, array, ตัวเลข, JSON เสีย) = {} ให้ validation ตอบ 400
 export async function readJson<T>(request: Request): Promise<Partial<T>> {
-  return (await request.json().catch(() => ({}))) as Partial<T>;
+  const body: unknown = await request.json().catch(() => undefined);
+  return (body && typeof body === "object" && !Array.isArray(body) ? body : {}) as Partial<T>;
 }
 
 // แปลง error เป็น response

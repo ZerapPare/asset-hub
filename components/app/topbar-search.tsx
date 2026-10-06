@@ -55,13 +55,15 @@ function SearchForm({ initialQ, initialMode, onAssetsPage }: { initialQ: string;
     }
   };
 
-  const selectMode = (value: Mode) => {
-    setMode(value);
-    // กำลังดูผลค้นหา: สลับโหมดแล้วค้นใหม่ทันที (คงตัวกรองไว้ ล้างการเรียงที่อาจใช้กับอีกโหมดไม่ได้)
-    if (onAssetsPage && initialQ) {
+  const selectMode = (nextMode: Mode) => {
+    setMode(nextMode);
+    // หน้า Asset + มีคำในช่อง: ค้นคำที่พิมพ์อยู่ด้วยโหมดใหม่ทันที (คงตัวกรองไว้ ล้างการเรียงที่อาจใช้กับอีกโหมดไม่ได้)
+    const draft = value.trim();
+    if (onAssetsPage && draft) {
       const next = new URLSearchParams(searchParams);
+      next.set("q", draft);
       next.delete("sort");
-      if (value === "semantic") next.set("mode", "semantic");
+      if (nextMode === "semantic") next.set("mode", "semantic");
       else next.delete("mode");
       router.push(`/assets?${next}`);
     }
@@ -69,29 +71,32 @@ function SearchForm({ initialQ, initialMode, onAssetsPage }: { initialQ: string;
 
   return (
     <form action="/assets" role="search" className="flex min-w-0 flex-1 items-center gap-3">
-      <label className="relative min-w-0 flex-1">
-        <span className="sr-only">ค้นหา</span>
-        {mode === "semantic" ? (
-          <SparkleIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-brand" />
-        ) : (
-          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ink-subtle" />
-        )}
-        <input
-          ref={inputRef}
-          name="q"
-          type="search"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && value) {
-              e.preventDefault();
-              clear();
-            }
-          }}
-          placeholder={mode === "semantic" ? "อธิบายสิ่งที่ต้องการ เช่น รูปทีมงานกำลังประชุม" : "ค้นหาชื่อไฟล์ Tag หรือ Collection"}
-          // ซ่อนปุ่ม × ของ browser (ล้างแค่ข้อความ และ Firefox ไม่มี) ใช้ปุ่มของเราแทน
-          className="h-12 w-full rounded-xl border border-line bg-canvas pl-12 pr-12 text-ink placeholder:text-ink-subtle outline-none transition focus:border-brand focus:bg-surface focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
-        />
+      {/* ปุ่มล้างอยู่นอก label ไม่ให้ชื่อช่องสำหรับ screen reader เปลี่ยน */}
+      <div className="relative min-w-0 flex-1">
+        <label className="block">
+          <span className="sr-only">ค้นหา</span>
+          {mode === "semantic" ? (
+            <SparkleIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-brand" />
+          ) : (
+            <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ink-subtle" />
+          )}
+          <input
+            ref={inputRef}
+            name="q"
+            type="search"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && value) {
+                e.preventDefault();
+                clear();
+              }
+            }}
+            placeholder={mode === "semantic" ? "อธิบายสิ่งที่ต้องการ เช่น รูปทีมงานกำลังประชุม" : "ค้นหาชื่อไฟล์ Tag หรือ Collection"}
+            // ซ่อนปุ่ม × ของ browser (ล้างแค่ข้อความ และ Firefox ไม่มี) ใช้ปุ่มของเราแทน
+            className="h-12 w-full rounded-xl border border-line bg-canvas pl-12 pr-12 text-ink placeholder:text-ink-subtle outline-none transition focus:border-brand focus:bg-surface focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
+          />
+        </label>
         {value && (
           <button
             type="button"
@@ -102,7 +107,7 @@ function SearchForm({ initialQ, initialMode, onAssetsPage }: { initialQ: string;
             <CloseIcon className="size-4" />
           </button>
         )}
-      </label>
+      </div>
       {mode === "semantic" && <input type="hidden" name="mode" value="semantic" />}
       {/* ค้นจากหน้า Asset: คงตัวกรองที่เลือกอยู่ */}
       {onAssetsPage &&

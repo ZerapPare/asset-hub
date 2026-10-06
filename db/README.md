@@ -9,6 +9,7 @@ PostgreSQL + pgvector (>= 0.5.0) + pg_trgm
 | `migrations/0001_schema.sql` | extensions, ตาราง, unique index ที่บังคับกฎข้อมูล, trigger `updated_at` |
 | `migrations/0002_indexes.sql` | index เพื่อความเร็ว (FK, dashboard, purge, keyword search, semantic search) |
 | `migrations/0003_search_indexes.sql` | index สำหรับค้น Tag และชื่อ Asset ด้วยคำสั้น |
+| `migrations/0004_default_tags.sql` | Tag กลาง 25 ตัว (ผู้ใช้สร้าง Tag เองไม่ได้ เลือกจากชุดนี้) |
 | `migrations/0005_thumbnail_process_type.sql` | เพิ่ม `THUMBNAIL` ใน `processing_workflows.process_type` |
 | `migrations/0006_query_embeddings.sql` | ตาราง cache embedding ของคำค้น Semantic Search |
 
@@ -17,7 +18,9 @@ PostgreSQL + pgvector (>= 0.5.0) + pg_trgm
 
 ### วิธีรัน
 - **docker:** `docker compose up -d` รันทุกไฟล์ให้เองตอนสร้าง volume ครั้งแรก
-  - มี migration ใหม่ → รันไฟล์นั้นเองใน DBeaver หรือ `docker compose down -v && docker compose up -d` (ข้อมูลหาย)
+  - มี migration ใหม่ → รันไฟล์นั้นเอง เช่น `docker compose exec db psql -U postgres -d assethub -f /docker-entrypoint-initdb.d/0006_query_embeddings.sql` หรือใน DBeaver หรือ `docker compose down -v && docker compose up -d` (ข้อมูลหาย)
+  - ลืมรัน → ฟีเจอร์ที่ใช้ตารางใหม่พัง เช่น ไม่มี `0006` = ค้น Semantic ไม่ได้ (ตกไปค้นด้วยคำแทน)
+- **RDS:** `npm run migrate` ผ่าน SSM tunnel (`infra/README.md` ขั้น 7) — รันเฉพาะไฟล์ที่ยังไม่เคยรัน
 - **DBeaver:** เปิดไฟล์ → เลือก database → Execute SQL Script ทีละไฟล์ตามลำดับ
 
 ### ตรวจหลังรัน
