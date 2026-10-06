@@ -6,8 +6,8 @@ import { formatBytes } from "@/lib/format";
 import type { FileType } from "@/lib/types";
 import type { Details } from "./upload-client";
 
-// ready = เลือกไฟล์แล้ว รอผู้ใช้กดอัปโหลด (ยังไม่ส่งอะไรขึ้น server)
-export type Phase = "rejected" | "ready" | "queued" | "uploading" | "processing" | "failed";
+// ready = เลือกไฟล์แล้ว รอผู้ใช้กดอัปโหลด (ยังไม่ส่งอะไรขึ้น server) / done = ประมวลผลเสร็จ
+export type Phase = "rejected" | "ready" | "queued" | "uploading" | "processing" | "done" | "failed";
 
 export type UploadItem = {
   key: string;
@@ -43,8 +43,8 @@ export function UploadItemCard({ item, selected, onSelect, onRemove }: Props) {
   }
 
   const meta = fileTypeMeta[item.fileType!];
-  const current = item.phase === "processing" ? 1 : 0;
-  const percent = item.phase === "processing" ? 100 : Math.round(item.progress * 100);
+  const current = item.phase === "done" ? 3 : item.phase === "processing" ? 1 : 0;
+  const percent = current > 0 ? 100 : Math.round(item.progress * 100);
 
   // เอาออกได้เฉพาะไฟล์ที่ยังไม่ได้กดอัปโหลด
   const removable = item.phase === "ready";

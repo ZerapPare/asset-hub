@@ -51,6 +51,17 @@ export async function uploadFile(file: File, details: Details, onProgress: (p: n
   return assetId;
 }
 
+export type AssetStatus = { status: "UPLOADING" | "PROCESSING" | "READY" | "FAILED"; error?: string };
+
+// ถามสถานะหลายไฟล์ในคำขอเดียว
+export async function fetchStatuses(ids: string[]) {
+  const { statuses } = await api<{ statuses: Record<string, AssetStatus> }>(
+    `/api/assets/status?ids=${ids.join(",")}`,
+    "GET",
+  );
+  return statuses;
+}
+
 // ส่งเฉพาะช่องที่ต่างจากที่บันทึกไว้
 async function saveDetails(assetId: string, next: Details, saved: Details) {
   const body: Record<string, unknown> = {};

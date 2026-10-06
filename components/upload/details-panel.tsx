@@ -49,8 +49,8 @@ export function DetailsPanel({ item, index, total, userName, collections, tagOpt
             กำลังแก้รายละเอียด · {index + 1} จาก {total}
           </p>
           <p className="truncate text-lg font-bold">{item.file.name}</p>
-          {item.phase === "processing" ? (
-            <StatusBadge status="PROCESSING" />
+          {item.phase === "processing" || item.phase === "done" ? (
+            <StatusBadge status={item.phase === "done" ? "READY" : "PROCESSING"} />
           ) : (
             <span className="text-sm text-ink-muted">
               {item.phase === "ready" ? "ยังไม่ได้อัปโหลด" : item.phase === "queued" ? "รออัปโหลด" : "กำลังอัปโหลด…"}

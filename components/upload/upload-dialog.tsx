@@ -6,10 +6,11 @@ import { CheckIcon, CloseIcon, CloudUploadIcon, FileIcon, ImageIcon, PencilIcon 
 import type { EditableCollection } from "@/lib/collections/editable";
 import { ACCEPT, checkFile, extensionOf, nameWithoutExtension } from "@/lib/upload/rules";
 import { DetailsPanel } from "./details-panel";
-import { uploadFile, type Details } from "./upload-client";
+import { fetchStatuses, uploadFile, type Details } from "./upload-client";
 import { UploadItemCard, type UploadItem } from "./upload-item";
 
 const CONCURRENCY = 3;
+const POLL_MS = 3000;
 
 type Props = { userName: string; collections: EditableCollection[]; tagOptions: string[] };
 
@@ -73,6 +74,33 @@ export function UploadDialog({ userName, collections, tagOptions }: Props) {
     }
   }, [items]);
 
+  // ถามสถานะไฟล์ที่กำลังประมวลผลทุก POLL_MS
+  const pendingIds = items
+    .filter((i) => i.phase === "processing" && i.assetId)
+    .map((i) => i.assetId!)
+    .join(",");
+  useEffect(() => {
+    if (!pendingIds) return;
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      // ล้ม = รอรอบถัดไป
+      const statuses = await fetchStatuses(pendingIds.split(",")).catch(() => undefined);
+      if (cancelled || !statuses) return;
+      setItems((prev) =>
+        prev.map((i) => {
+          const s = i.phase === "processing" && i.assetId ? statuses[i.assetId] : undefined;
+          if (s?.status === "READY") return { ...i, phase: "done" };
+          if (s?.status === "FAILED") return { ...i, phase: "failed", error: s.error ?? "ประมวลผลไม่สำเร็จ" };
+          return i;
+        }),
+      );
+    }, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [pendingIds]);
+
   function close() {
     const params = new URLSearchParams(searchParams);
     params.delete("upload");
@@ -101,7 +129,9 @@ export function UploadDialog({ userName, collections, tagOptions }: Props) {
 
   const valid = items.filter((i) => i.phase !== "rejected" && i.phase !== "failed");
   const ready = valid.filter((i) => i.phase === "ready");
-  const uploaded = valid.filter((i) => i.phase === "processing");
+  const processing = valid.filter((i) => i.phase === "processing");
+  const finished = valid.filter((i) => i.phase === "done");
+  const uploaded = [...processing, ...finished];
   const busy = valid.length !== uploaded.length + ready.length;
   const rejected = items.length - valid.length;
   const selectedIndex = valid.findIndex((i) => i.key === selectedKey);
@@ -207,7 +237,9 @@ export function UploadDialog({ userName, collections, tagOptions }: Props) {
                 <div className="mb-3 flex items-center justify-between text-sm">
                   <span className="font-semibold">{items.length} ไฟล์</span>
                   <span className="text-ink-muted">
-                    {uploaded.length} กำลังประมวลผล{rejected > 0 && ` · ${rejected} ถูกปฏิเสธ`}
+                    {processing.length} กำลังประมวลผล
+                    {finished.length > 0 && ` · ${finished.length} พร้อมใช้`}
+                    {rejected > 0 && ` · ${rejected} ถูกปฏิเสธ`}
                   </span>
                 </div>
                 <ul className="space-y-3">
