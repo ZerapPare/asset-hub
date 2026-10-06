@@ -31,6 +31,7 @@ export function createWeb({ bucket, queue }: {
       GOOGLE_CLIENT_ID: secrets.googleClientId.value,
       GOOGLE_CLIENT_SECRET: secrets.googleClientSecret.value,
       NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN: "kmitl.ac.th",
+      GOOGLE_REDIRECT_URI: "https://d3a1ivk0zkc6oy.cloudfront.net/api/auth/google/callback",
     },
   });
 }
