@@ -8,7 +8,7 @@ import { secrets } from "./secrets";
 // db.t4g.micro, Single-AZ, private subnet, SG assethub-rds — ไม่ใช้ RDS Proxy (ADR-3)
 // ค่าพวกนี้ไม่ใช่ความลับ commit ได้ — password อยู่ใน sst secret DbPassword
 export const database = {
-  host: "REPLACE_ME.ap-southeast-1.rds.amazonaws.com", // RDS → Databases → assethub-db → Endpoint
+  host: "assethub-db.ch0kogmoi1eh.ap-southeast-1.rds.amazonaws.com", // RDS → Databases → assethub-db → Endpoint
   port: 5432,
   name: "assethub", // Initial database name ตอนสร้าง
   username: "postgres",

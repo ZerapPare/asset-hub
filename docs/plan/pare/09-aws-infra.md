@@ -50,7 +50,7 @@ infra/
 - VPC / RDS / S3 สร้างใน console (ขั้นตอนใน [infra/README.md](../../../infra/README.md)) — SST แค่อ่าน ID ไม่สร้าง/ไม่ลบ
 
 ## Dev ในเครื่อง (MinIO)
-- `docker compose up -d` → Postgres `localhost:5432` และ MinIO `localhost:9000` (console `9001`, user `dev` / `devdevdev`)
+- `docker compose up -d` → Postgres `localhost:5432` และ MinIO `localhost:9000` (console `9001`, user/password ตาม `MINIO_ROOT_*` ใน `docker-compose.yml`)
 - สร้าง bucket ใน MinIO console หรือเขียน script ด้วย `mc`
 - `lib/s3.ts`:
   ```ts
@@ -59,7 +59,7 @@ infra/
     ...(process.env.S3_ENDPOINT && {
       endpoint: process.env.S3_ENDPOINT,   // http://localhost:9000
       forcePathStyle: true,
-      credentials: { accessKeyId: "dev", secretAccessKey: "devdevdev" },
+      credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY },
     }),
   });
   ```

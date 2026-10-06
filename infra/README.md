@@ -73,7 +73,7 @@ RDS → Subnet groups → **Create DB subnet group**
 | **Initial database name** (Additional configuration) | `assethub` | **ห้ามลืม** — ไม่ใส่ = ไม่มี database นี้ |
 | Backup retention | 1–7 วัน | |
 | Encryption | เปิด (ค่าเริ่มต้น) | ฟรี |
-| Deletion protection | เปิด | กันเผลอลบ (ปิดก่อนจะลบจริง) |
+| Deletion protection | ปิด | ตั้งใจลบแล้วสร้างใหม่ตอนใกล้ส่งงาน (ประหยัด credit) — สร้างใหม่แล้วต้องแก้ `host` ใน `database.ts` + รัน migration ใหม่ |
 
 **4.3 หลังสร้างเสร็จ** (~10 นาที)
 - copy **Endpoint** (RDS → Databases → `assethub-db` → Connectivity) ใส่ `host` ใน `database.ts`
