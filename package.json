@@ -9,7 +9,8 @@
     "process:pending": "tsx --env-file=.env.local scripts/process-pending.ts",
     "migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test:worker": "tsx --env-file=.env.local scripts/test-worker.ts",
-    "start": "next start"
+    "start": "next start",
+    "deploy": "git pull && npm ci && sst deploy --stage dev"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1146.0",
