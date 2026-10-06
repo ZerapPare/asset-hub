@@ -1,0 +1,43 @@
+# push ขึ้น main → deploy stage dev (build บน Linux ให้ sharp/canvas ถูกแพลตฟอร์ม)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+# กัน deploy ซ้อนจน state ของ SST ล็อก
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+# id-token: ขอ token ชั่วคราวจาก AWS (OIDC) ไม่ต้องเก็บ access key
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-southeast-1
+
+      - run: npm ci
+
+      - run: npx sst deploy --stage dev
+        env:
+          ALARM_EMAIL: ${{ vars.ALARM_EMAIL }}

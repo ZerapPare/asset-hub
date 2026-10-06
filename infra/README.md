@@ -182,3 +182,18 @@ cron ทุก 30 นาที (lib/processing/maintenance.ts)
 - [ ] ตั้ง secret ครบ 4 ตัว (ขั้น 6)
 - [ ] build บน **Linux** (GitHub Actions / WSL) — `sharp`, `@napi-rs/canvas` เป็น native module ถ้า build บน Windows จะได้ binary ผิดแพลตฟอร์ม
 - [ ] `npx sst deploy --stage dev` แล้วทดสอบ: อัปโหลด → READY → ค้นแบบ Semantic → ลองไฟล์เสียแล้วดูว่าไป DLQ + alarm ทำงาน
+
+## 10. Deploy
+
+**ปกติ: push ขึ้น `main`** → GitHub Actions (`.github/workflows/deploy.yml`) deploy stage `dev` ให้เอง (~5–10 นาที) ดูผลที่แท็บ **Actions** · กดรันเองได้ที่ Actions → Deploy → Run workflow
+- แก้แค่ `docs/` หรือไฟล์ `.md` ไม่ deploy
+- งานที่ยังไม่พร้อม ทำใน branch อื่นก่อน merge
+- deploy ไม่ต้องเปิด NAT แต่ใช้งานเว็บต้องเปิด (Google login / Bedrock)
+
+**สำรอง: WSL** → `cd ~/asset-hub && npm run deploy` (`git pull` + `npm ci` + `sst deploy --stage dev`) — repo ต้อง clone ไว้ฝั่ง Linux ไม่ใช่ `/mnt/c`
+
+**ตั้งครั้งเดียว (ทำแล้ว):** GitHub เข้า AWS ด้วย OIDC ไม่เก็บ access key
+- IAM → Identity providers: `token.actions.githubusercontent.com` (audience `sts.amazonaws.com`)
+- IAM role `assethub-github-deploy` (Web identity, รับเฉพาะ `ZerapPare/asset-hub` branch `main`) + `AdministratorAccess`
+- GitHub → Settings → Secrets and variables → Actions → Variables: `AWS_DEPLOY_ROLE_ARN` = ARN ของ role (ไม่บังคับ: `ALARM_EMAIL`)
+- secret ของแอปอยู่ใน `sst secret` แล้ว ไม่ต้องใส่ใน GitHub
