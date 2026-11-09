@@ -6,6 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
     "process:pending": "tsx --env-file=.env.local scripts/process-pending.ts",
     "migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test:worker": "tsx --env-file=.env.local scripts/test-worker.ts",
@@ -38,6 +40,7 @@
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   }
 }

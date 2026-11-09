@@ -31,12 +31,21 @@ jobs:
           node-version: 22
           cache: npm
 
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-southeast-1
-
-      - run: npm ci
 
       - run: npx sst deploy --stage dev
         env:

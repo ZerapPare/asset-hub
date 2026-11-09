@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Checks before deployment
+
+Run `npm run lint`, `npm run typecheck`, and `npm test` before deploying.
+`typecheck` generates Next.js route types before checking TypeScript.
+Unit tests use Vitest with mocked database/storage/worker dependencies; they do not
+require `.env.local`, a running database, or AWS credentials. They cover validation,
+collection permissions and mutation restrictions, file URL guards, and SQS retries.
+They do not verify SQL visibility rules against a real database or live AWS processing.
+The separate `npm run test:worker` script remains an environment-dependent integration test.
+
+GitHub Actions runs these checks before acquiring AWS credentials and deploying stage `dev`.
+If any check fails, deployment is skipped. Database migrations are still run manually.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
