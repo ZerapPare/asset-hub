@@ -4,32 +4,67 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AssetCard } from "@/components/assets/asset-card";
-import { FolderIcon, FolderPlusIcon, LayersIcon, PencilIcon, PlusIcon, TrashIcon, UserPlusIcon } from "@/components/icons";
+import {
+  FolderIcon,
+  FolderPlusIcon,
+  LayersIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  SparkleIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from "@/components/icons";
+import { SearchResultCard } from "@/components/search/search-result-card";
+import type { FilterOption, SearchMode, SearchResult } from "@/components/search/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
-import type { CollectionDetail, CollectionSort } from "@/lib/collections/queries";
+import type { CollectionDetail } from "@/lib/collections/queries";
 import { formatBytes } from "@/lib/format";
-import type { Asset } from "@/lib/types";
 import { AddAssetsDialog } from "./add-assets-dialog";
 import { ROLE_LABELS, collectionRequest } from "./api";
 import { CollectionForm } from "./collection-form";
 import { MembersDialog } from "./members-dialog";
 
+/** browse = ไม่มีคำค้น แสดงไฟล์ทั้งหมดใน Collection */
+export type CollectionKind = "browse" | SearchMode;
+
 type Props = {
   collection: CollectionDetail;
-  assets: Asset[];
+  results: SearchResult[];
+  timedOut: boolean;
+  fellBack: boolean;
   myUserId: string;
   meName: string;
   q: string;
-  sort: CollectionSort;
+  mode: SearchMode;
+  kind: CollectionKind;
+  /** ค่าว่าง = การเรียงเริ่มต้นของ kind นั้น */
+  sort: string;
+  sortOptions: FilterOption[];
 };
 
-const SORTS: Record<CollectionSort, string> = { newest: "ล่าสุด", oldest: "เก่าสุด", name: "ชื่อ A–Z" };
 const MAX_AVATARS = 4;
 const fullDate = new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeZone: "Asia/Bangkok" });
+const MODES = [
+  { value: "keyword", label: "Keyword", Icon: SearchIcon },
+  { value: "semantic", label: "Semantic", Icon: SparkleIcon },
+] as const;
 
-export function CollectionView({ collection: c, assets, myUserId, meName, q, sort }: Props) {
+export function CollectionView({
+  collection: c,
+  results,
+  timedOut,
+  fellBack,
+  myUserId,
+  meName,
+  q,
+  mode,
+  kind,
+  sort,
+  sortOptions,
+}: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -44,27 +79,36 @@ export function CollectionView({ collection: c, assets, myUserId, meName, q, sor
 
   // ค้นหา → ?q= (หน่วงเวลา)
   useEffect(() => {
-    if (query === q) return;
-    const t = setTimeout(() => setParam("q", query.trim()), 300);
+    if (query.trim() === q) return;
+    const t = setTimeout(() => setParams({ q: query.trim() }), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  function setParam(key: string, value: string) {
+  function setParams(values: Record<string, string>) {
     const params = new URLSearchParams(searchParams);
-    if (value) params.set(key, value);
-    else params.delete(key);
+    for (const [key, value] of Object.entries(values)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
     router.replace(params.size ? `${pathname}?${params}` : pathname, { scroll: false });
   }
+  // แต่ละโหมดเรียงได้ไม่เหมือนกัน → เปลี่ยนโหมดแล้วกลับไปใช้การเรียงเริ่มต้น
+  const switchMode = (next: SearchMode) => setParams({ mode: next === "semantic" ? next : "", sort: "" });
 
-  const allSelected = assets.length > 0 && selected.length === assets.length;
+  const assets = results.map((r) => r.asset);
+  // เลือกได้เฉพาะไฟล์ที่แสดงอยู่ — เปลี่ยนคำค้นแล้วไฟล์ที่ไม่แสดงจะไม่ถูกเอาออกโดยไม่ตั้งใจ
+  const shownSelected = selected.filter((id) => assets.some((a) => a.id === id));
+  const allSelected = assets.length > 0 && shownSelected.length === assets.length;
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  // ไฮไลต์เฉพาะผล Keyword (Semantic ไม่ได้ค้นจากคำที่ตรงกัน)
+  const highlight = kind === "keyword" || fellBack ? q : "";
 
   async function removeSelected() {
     setBusy(true);
     setError(undefined);
     try {
-      await collectionRequest(`/${c.id}/assets`, "DELETE", { assetIds: selected });
+      await collectionRequest(`/${c.id}/assets`, "DELETE", { assetIds: shownSelected });
       setSelected([]);
       router.refresh();
     } catch (e) {
@@ -150,6 +194,22 @@ export function CollectionView({ collection: c, assets, myUserId, meName, q, sor
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
             <SearchInput label={`ค้นหาใน ${c.name}`} value={query} onChange={setQuery} className="w-full max-w-sm" />
+            <div role="group" aria-label="โหมดการค้นหา" className="inline-flex rounded-xl bg-surface p-1 ring-1 ring-line">
+              {MODES.map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => switchMode(value)}
+                  aria-pressed={mode === value}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                    mode === value ? "bg-brand-soft text-brand-ink" : "text-ink-muted hover:text-ink"
+                  }`}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
             {canEdit && assets.length > 0 && (
               <label className="flex cursor-pointer items-center gap-2 text-ink-muted">
                 <input
@@ -164,18 +224,22 @@ export function CollectionView({ collection: c, assets, myUserId, meName, q, sor
           </div>
           <label className="flex h-12 items-center gap-1 rounded-xl border border-brand/30 bg-brand-soft/50 pl-4 pr-2 font-semibold text-brand-ink">
             เรียงตาม:
-            <select value={sort} onChange={(e) => setParam("sort", e.target.value === "newest" ? "" : e.target.value)} className="cursor-pointer bg-transparent py-2 font-semibold outline-none">
-              {(Object.keys(SORTS) as CollectionSort[]).map((s) => (
-                <option key={s} value={s}>{SORTS[s]}</option>
+            <select value={sort} onChange={(e) => setParams({ sort: e.target.value })} className="cursor-pointer bg-transparent py-2 font-semibold outline-none">
+              {sortOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </label>
         </div>
       )}
 
-      {selected.length > 0 && (
+      {fellBack && (
+        <p role="status" className="text-sm text-ink-muted">ค้นแบบ Semantic ไม่ได้ในตอนนี้ แสดงผลแบบ Keyword แทน</p>
+      )}
+
+      {shownSelected.length > 0 && (
         <div className="sticky top-20 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-md">
-          <span className="font-semibold">เลือก {selected.length} ไฟล์</span>
+          <span className="font-semibold">เลือก {shownSelected.length} ไฟล์</span>
           <button type="button" onClick={removeSelected} disabled={busy} className="rounded-lg bg-danger px-4 py-2 font-semibold text-white hover:opacity-90 disabled:opacity-60">
             {busy ? "กำลังเอาออก…" : "เอาออกจาก Collection"}
           </button>
@@ -184,22 +248,42 @@ export function CollectionView({ collection: c, assets, myUserId, meName, q, sor
         </div>
       )}
 
-      {assets.length > 0 ? (
+      {results.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {assets.map((a) => (
-            <div key={a.id} className="relative">
-              <AssetCard asset={a} meName={meName} failedHint />
+          {results.map((r) => (
+            <div key={r.asset.id} className="relative">
+              {kind === "browse" ? (
+                <AssetCard asset={r.asset} meName={meName} failedHint />
+              ) : (
+                <SearchResultCard result={r} query={highlight} layout="grid" />
+              )}
               {canEdit && (
                 <label className="absolute left-3 top-3 z-10 flex size-7 cursor-pointer items-center justify-center rounded-md bg-surface/90 shadow-sm">
-                  <span className="sr-only">เลือก {a.name}</span>
-                  <input type="checkbox" checked={selected.includes(a.id)} onChange={() => toggle(a.id)} className="size-4 accent-[var(--brand)]" />
+                  <span className="sr-only">เลือก {r.asset.name}</span>
+                  <input type="checkbox" checked={selected.includes(r.asset.id)} onChange={() => toggle(r.asset.id)} className="size-4 accent-[var(--brand)]" />
                 </label>
               )}
             </div>
           ))}
         </div>
+      ) : timedOut ? (
+        <p className="rounded-3xl border border-dashed border-line py-16 text-center text-ink-muted">
+          ค้นหาใช้เวลานานเกินไป ลองใช้คำที่เจาะจงขึ้น
+        </p>
       ) : q ? (
-        <p className="rounded-3xl border border-dashed border-line py-16 text-center text-ink-muted">ไม่พบไฟล์ที่ตรงกับ “{q}”</p>
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-line py-16 text-center text-ink-muted">
+          <p>ไม่พบไฟล์ที่ตรงกับ “{q}”</p>
+          {kind === "keyword" && (
+            <button
+              type="button"
+              onClick={() => switchMode("semantic")}
+              className="flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-brand/40 hover:text-brand-ink"
+            >
+              <SparkleIcon className="size-4" />
+              ลองค้นแบบ Semantic
+            </button>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col items-center rounded-3xl border border-line bg-surface px-6 py-16 text-center">
           <span className="flex size-16 items-center justify-center rounded-2xl bg-brand-soft text-brand">

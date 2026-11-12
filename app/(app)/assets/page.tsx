@@ -17,19 +17,18 @@ import { FilterPanel } from "@/components/search/filter-panel";
 import { FilterSelect } from "@/components/search/filter-select";
 import { OWNER_OPTIONS, UPLOADED_OPTIONS } from "@/components/search/options";
 import { SearchResultCard } from "@/components/search/search-result-card";
-import type { FilterOption, SearchFilters, SearchMode, SearchResult, SearchView } from "@/components/search/types";
+import type { FilterOption, SearchFilters, SearchMode, SearchView } from "@/components/search/types";
 import { UploadLink } from "@/components/upload/upload-link";
 import { LIST_LIMIT, listAssets, type ListSort } from "@/lib/api/assets";
+import { runSearch, type SearchOutcome } from "@/lib/assets/run-search";
 import {
   SEARCH_LIMIT,
-  SearchTimeoutError,
   UPLOADED_RANGES,
   getSearchFilterOptions,
-  searchAssets,
   type AssetFilterOptions,
   type SearchSort,
 } from "@/lib/assets/search";
-import { semanticSearch, type SemanticSort } from "@/lib/assets/semantic";
+import type { SemanticSort } from "@/lib/assets/semantic";
 import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const metadata: Metadata = { title: "Asset ทั้งหมด — AssetHub" };
@@ -153,33 +152,14 @@ async function AssetsView({ params, kind }: { params: Params; kind: "browse" | S
 
   // sort ผ่านการตรวจกับ sortOptions[kind] แล้ว
   const sort = params.sort || undefined;
-  type Loaded = { results: SearchResult[]; timedOut: boolean; fellBack?: boolean };
-  const keywordSearch = async (): Promise<Loaded> => {
-    try {
-      // sort ของ Semantic ("newest") เป็นค่าที่ Keyword รองรับด้วย
-      return { results: await searchAssets(user.user_id, q, { ...filterOptions, sort: sort as SearchSort | undefined }), timedOut: false };
-    } catch (error) {
-      if (!(error instanceof SearchTimeoutError)) throw error;
-      return { results: [], timedOut: true };
-    }
-  };
-  const load = async (): Promise<Loaded> => {
+  const load = async (): Promise<SearchOutcome> => {
     if (kind === "browse") {
       const assets = await listAssets(user.user_id, { ...filterOptions, sort: sort as ListSort | undefined });
-      return { results: assets.map((asset) => ({ asset, tags: [], matchedIn: [] })), timedOut: false };
+      return { results: assets.map((asset) => ({ asset, tags: [], matchedIn: [] })), timedOut: false, fellBack: false };
     }
-    if (kind === "semantic") {
-      try {
-        return { results: await semanticSearch(user.user_id, q, { ...filterOptions, sort: sort as SemanticSort | undefined }), timedOut: false };
-      } catch (error) {
-        // Bedrock ล้ม/ช้า, SQL เกินเวลา หรือ DB ยังไม่มีตาราง cache → แสดงผล Keyword แทน ไม่ให้ทั้งหน้า error
-        console.error("[semantic] falling back to keyword search:", error);
-        return { ...(await keywordSearch()), fellBack: true };
-      }
-    }
-    return keywordSearch();
+    return runSearch(user.user_id, q, kind, filterOptions, sort as SearchSort | SemanticSort | undefined);
   };
-  const [{ collections: collectionOptions, tags: tagOptions }, { results, timedOut, fellBack = false }] = await Promise.all([
+  const [{ collections: collectionOptions, tags: tagOptions }, { results, timedOut, fellBack }] = await Promise.all([
     getSearchFilterOptions(user.user_id),
     load(),
   ]);
